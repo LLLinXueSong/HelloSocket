@@ -71,7 +71,7 @@ int processor(SOCKET _cSock)
 	int nLen = recv(_cSock, (char*)&szRecv, sizeof(DataHeader), 0);
 	DataHeader *header = (DataHeader*)szRecv;
 	if (nLen <= 0) {
-		printf("socket-%d client exit",_cSock);
+		printf("socket-%d client exit\n",_cSock);
 		return -1;
 	}
 	//printf("cmd:%d Len:%d\n", header.cmd, header.dataLength);
@@ -161,13 +161,16 @@ int main()
 			if (INVALID_SOCKET == _cSock) {
 				printf("接收无效客户端\n");
 			}
-			for (int n = 0; n < g_clients.size(); n++)
-			{
-				NewUserJoin userJoin;
-				send(g_clients[n], (const char*)&userJoin, sizeof(NewUserJoin), 0);
+			else {
+				for (int n = 0; n < g_clients.size(); n++)
+					{
+						NewUserJoin userJoin;
+						send(g_clients[n], (const char*)&userJoin, sizeof(NewUserJoin), 0);
+					}
+					printf("新客户端加入socket = %d IP:%s \n", (int)_cSock, inet_ntoa(clientAddr.sin_addr));
+					g_clients.push_back(_cSock);
 			}
-			printf("新客户端加入socket = %d IP:%s \n", (int)_cSock, inet_ntoa(clientAddr.sin_addr));
-			g_clients.push_back(_cSock);
+			
 		}
 		for (int n = 0; n< fdRead.fd_count; n++)
 		{
@@ -178,7 +181,7 @@ int main()
 				}
 			}
 		}
-		printf("we can do other\n");
+		//printf("we can do other\n");
 			
 	}
 	for (int n = 0; n < g_clients.size(); n++)

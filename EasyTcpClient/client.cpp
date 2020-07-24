@@ -4,6 +4,7 @@
 #include<Windows.h>
 #include<WinSock2.h>
 #include<stdio.h>
+#include<thread>
 #pragma comment(lib,"ws2_32.lib")
 enum CMD
 {
@@ -58,7 +59,7 @@ struct LogoutResult :DataHeader
 struct NewUserJoin :DataHeader
 {
 	NewUserJoin() {
-		dataLength = sizeof(LogoutResult);
+		dataLength = sizeof(NewUserJoin);
 		cmd = CMD_NEW_USER_JOIN;
 		sock = 0;
 	}
@@ -81,7 +82,7 @@ int processor(SOCKET _cSock)
 			LoginResult *login;
 			recv(_cSock, szRecv + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
 			login = (LoginResult*)szRecv;
-			printf("recv server cmd:loginresult Len:%d \n", _cSock, login->dataLength);
+			printf("recv server cmd:loginresult Len:%d \n", login->dataLength);
 			break;
 		}
 		case CMD_LOGOUT:
@@ -89,7 +90,7 @@ int processor(SOCKET _cSock)
 			LogoutResult *logout;
 			recv(_cSock, szRecv + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
 			logout = (LogoutResult*)szRecv;
-			printf("recv server cmd:loginresult Len:%d \n", _cSock, logout->dataLength);
+			printf("recv server cmd:loginresult Len:%d \n", logout->dataLength);
 			break;
 		}
 		case CMD_NEW_USER_JOIN:
@@ -101,6 +102,31 @@ int processor(SOCKET _cSock)
 			break;
 		}
 	}
+}
+bool g_bRun = true;
+void cmdThread(SOCKET _sock) {
+	while (true) {
+		char cmdBuf[256] = {};
+		scanf("%s", cmdBuf);
+		if (0 == strcmp(cmdBuf, "exit")) {
+			g_bRun = false;
+			printf("exit cmdThread.....\n");
+			break;
+		}
+		else if (0 == strcmp(cmdBuf, "login")) {
+			Login login;
+			strcpy(login.userName, "lyd");
+			strcpy(login.PassWord, "lydmima");
+			send(_sock, (const char*)&login, sizeof(Login), 0);
+		}
+		else if (0 == strcmp(cmdBuf, "logout")) {
+			Logout logout;
+			strcpy(logout.userName, "lyd");
+			send(_sock, (const char*)&logout, sizeof(Logout), 0);
+		}
+	}
+	
+	
 }
 int main()
 {
@@ -125,7 +151,9 @@ int main()
 	else {
 		printf("connect success\n");
 	}
-	while (true) {
+	std::thread tl(cmdThread,_sock);
+	tl.detach();
+	while (g_bRun) {
 		fd_set fdReads;
 		FD_ZERO(&fdReads);
 		FD_SET(_sock, &fdReads);
@@ -143,11 +171,8 @@ int main()
 				break;
 			}
 		}
-		printf("we can do other\n");
-		Login login;
-		strcpy(login.userName, "lyd");
-		strcpy(login.PassWord, "lydmima");
-		send(_sock, (const char*)&login, sizeof(Login), 0);
+		//printf("we can do other\n");
+		
 	}
 
 	closesocket(_sock);
