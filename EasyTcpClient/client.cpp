@@ -11,6 +11,7 @@ enum CMD
 	CMD_LOGIN_RESULT,
 	CMD_LOGOUT,
 	CMD_LOGOUT_RESULT,
+	CMD_NEW_USER_JOIN,
 	CMD_ERROR
 };
 struct DataHeader
@@ -54,6 +55,53 @@ struct LogoutResult :DataHeader
 	}
 	int result;
 };
+struct NewUserJoin :DataHeader
+{
+	NewUserJoin() {
+		dataLength = sizeof(LogoutResult);
+		cmd = CMD_NEW_USER_JOIN;
+		sock = 0;
+	}
+	int sock;
+};
+int processor(SOCKET _cSock)
+{
+	char szRecv[1024] = {};
+	int nLen = recv(_cSock, (char*)&szRecv, sizeof(DataHeader), 0);
+	DataHeader *header = (DataHeader*)szRecv;
+	if (nLen <= 0) {
+		printf("socket-%d client exit", _cSock);
+		return -1;
+	}
+	//printf("cmd:%d Len:%d\n", header.cmd, header.dataLength);
+	switch (header->cmd)
+	{
+		case CMD_LOGIN_RESULT:
+		{
+			LoginResult *login;
+			recv(_cSock, szRecv + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
+			login = (LoginResult*)szRecv;
+			printf("recv server cmd:loginresult Len:%d \n", _cSock, login->dataLength);
+			break;
+		}
+		case CMD_LOGOUT:
+		{
+			LogoutResult *logout;
+			recv(_cSock, szRecv + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
+			logout = (LogoutResult*)szRecv;
+			printf("recv server cmd:loginresult Len:%d \n", _cSock, logout->dataLength);
+			break;
+		}
+		case CMD_NEW_USER_JOIN:
+		{
+			NewUserJoin *userJoin;
+			recv(_cSock, szRecv + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
+			userJoin = (NewUserJoin*)szRecv;
+			printf("new user join cmd:loginresult Len:%d \n", _cSock, userJoin->dataLength);
+			break;
+		}
+	}
+}
 int main()
 {
 	WORD ver = MAKEWORD(2, 2);
@@ -77,34 +125,29 @@ int main()
 	else {
 		printf("connect success\n");
 	}
-	char cmdBuf[128] = {};
 	while (true) {
-		scanf("%s", cmdBuf);
-		if (0 == strcmp(cmdBuf, "exit")) {
+		fd_set fdReads;
+		FD_ZERO(&fdReads);
+		FD_SET(_sock, &fdReads);
+		timeval t = { 1,0 };
+		int ret = select(_sock, &fdReads, 0, 0, &t);
+		if (ret < 0) {
+			printf("select is over\n");
 			break;
 		}
-		else if (0 == strcmp(cmdBuf, "login")) {
-			Login login;
-			strcpy(login.userName, "lyd");
-			strcpy(login.PassWord, "lydmima");
-			send(_sock, (const char*)&login, sizeof(login), 0);
-			LoginResult loginRet = {};
-			recv(_sock, (char*)&loginRet, sizeof(loginRet), 0);
-			printf("LoginResult:%d \n", loginRet.result);
-		}
-		else if (0 == strcmp(cmdBuf, "logout")) {
-			Logout logout;
-			strcpy(logout.userName, "lyd");
-			send(_sock, (const char*)&logout, sizeof(logout), 0);
-			LogoutResult logoutRet;
-			recv(_sock, (char*)&logoutRet, sizeof(logoutRet),0);
-			printf("LogoutResult: %d \n", logoutRet.result);
-		}
-		else
+		if (FD_ISSET(_sock, &fdReads))
 		{
-			printf("error cmd\n");
+			FD_CLR(_sock, &fdReads);
+			if (-1 == processor(_sock)) {
+				printf("select is over\n");
+				break;
+			}
 		}
-		
+		printf("we can do other\n");
+		Login login;
+		strcpy(login.userName, "lyd");
+		strcpy(login.PassWord, "lydmima");
+		send(_sock, (const char*)&login, sizeof(Login), 0);
 	}
 
 	closesocket(_sock);
