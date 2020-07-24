@@ -87,38 +87,41 @@ int main()
 		printf("接收无效客户端\n");
 	}
 	printf("新客户端加入socket = %d IP:%s \n", (int)_cSock,inet_ntoa(clientAddr.sin_addr));
-	char cmdBuf[128] = {};
+	
 	while (true){
-		DataHeader header = {};
-		int nLen = recv(_cSock,(char*)&header , sizeof(header), 0);
+		char szRecv[1024] = {};
+		
+		int nLen = recv(_cSock, (char*)&szRecv, sizeof(DataHeader), 0);
+		DataHeader *header = (DataHeader*)szRecv;
 		if (nLen <= 0) {
 			printf("client exit");
 			break;
 		}
 		//printf("cmd:%d Len:%d\n", header.cmd, header.dataLength);
-		switch (header.cmd)
+		switch (header->cmd)
 		{
 		case CMD_LOGIN:
 		{
-			Login login = {};
-			recv(_cSock, (char*)&login+sizeof(DataHeader), sizeof(login)- sizeof(DataHeader), 0);
-			printf("cmd:login Len:%d username:%s password:%s\n",  login.dataLength,login.userName,login.PassWord);
+			Login *login;
+			recv(_cSock, szRecv+sizeof(DataHeader), header->dataLength- sizeof(DataHeader), 0);
+			login = (Login*)szRecv;
+			printf("cmd:login Len:%d username:%s password:%s\n",  login->dataLength,login->userName,login->PassWord);
 			LoginResult ret;
 			send(_cSock, (char*)&ret, sizeof(LoginResult), 0);
 			break;
 		}
 		case CMD_LOGOUT:
 		{
-			Logout logout = {};
-			recv(_cSock, (char*)&logout + sizeof(DataHeader), sizeof(Logout)- sizeof(DataHeader), 0);
-			printf("cmd:logout Len:%d username:%s\n", logout.dataLength, logout.userName);
+			Logout *logout;
+			recv(_cSock, szRecv + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
+			logout = (Logout*)szRecv;
+			printf("cmd:logout Len:%d username:%s\n", logout->dataLength, logout->userName);
 			LogoutResult ret;
 			send(_cSock, (char*)&ret, sizeof(LogoutResult), 0);
 			break;
 		}
 		default:
-			header.cmd = CMD_ERROR;
-			header.dataLength = 0;
+			DataHeader header = { 0, CMD_ERROR };
 			send(_cSock, (char*)&header, sizeof(header), 0);
 			break;
 		}
@@ -127,7 +130,6 @@ int main()
 	
 	closesocket(_sock);
 	printf("exit \n");
-	
 	WSACleanup();
 	getchar();
 	return 0;
