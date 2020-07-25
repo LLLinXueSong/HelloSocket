@@ -113,7 +113,8 @@ int main()
 	sockaddr_in _sin = {};
 	_sin.sin_family = AF_INET;
 	_sin.sin_port = htons(4567);
-	_sin.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
+	//_sin.sin_addr.S_un.S_addr = inet_addr("192.168.0.103");
+	_sin.sin_addr.S_un.S_addr = htonl(INADDR_ANY);
 	if (bind(_sock, (sockaddr*)&_sin, sizeof(_sin)) == SOCKET_ERROR){
 		printf("°ó¶¨ERROR\n");
 	}

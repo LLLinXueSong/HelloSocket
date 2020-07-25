@@ -1,10 +1,22 @@
 #define WIN32_LEAN_AND_MEAN
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 #define _CRT_SECURE_NO_WARNINGS
+
+#ifdef _WIN32
 #include<Windows.h>
 #include<WinSock2.h>
+#else
+#include<unistd.h>
+#include<arpa/inet.h>
+#include<string.h>
+#define SOCKET int
+#define INVALID_SOCKET (SOCKET)(~0)
+#define SOCKET_ERROR           (-1)
+#endif
+
 #include<stdio.h>
 #include<thread>
+
 #pragma comment(lib,"ws2_32.lib")
 enum CMD
 {
@@ -77,30 +89,30 @@ int processor(SOCKET _cSock)
 	//printf("cmd:%d Len:%d\n", header.cmd, header.dataLength);
 	switch (header->cmd)
 	{
-		case CMD_LOGIN_RESULT:
-		{
-			LoginResult *login;
-			recv(_cSock, szRecv + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
-			login = (LoginResult*)szRecv;
-			printf("recv server cmd:loginresult Len:%d \n", login->dataLength);
-			break;
-		}
-		case CMD_LOGOUT:
-		{
-			LogoutResult *logout;
-			recv(_cSock, szRecv + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
-			logout = (LogoutResult*)szRecv;
-			printf("recv server cmd:loginresult Len:%d \n", logout->dataLength);
-			break;
-		}
-		case CMD_NEW_USER_JOIN:
-		{
-			NewUserJoin *userJoin;
-			recv(_cSock, szRecv + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
-			userJoin = (NewUserJoin*)szRecv;
-			printf("new user join cmd:loginresult Len:%d \n", _cSock, userJoin->dataLength);
-			break;
-		}
+	case CMD_LOGIN_RESULT:
+	{
+		LoginResult *login;
+		recv(_cSock, szRecv + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
+		login = (LoginResult*)szRecv;
+		printf("recv server cmd:loginresult Len:%d \n", login->dataLength);
+		break;
+	}
+	case CMD_LOGOUT:
+	{
+		LogoutResult *logout;
+		recv(_cSock, szRecv + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
+		logout = (LogoutResult*)szRecv;
+		printf("recv server cmd:loginresult Len:%d \n", logout->dataLength);
+		break;
+	}
+	case CMD_NEW_USER_JOIN:
+	{
+		NewUserJoin *userJoin;
+		recv(_cSock, szRecv + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
+		userJoin = (NewUserJoin*)szRecv;
+		printf("new user join cmd:loginresult Len:%d \n", _cSock, userJoin->dataLength);
+		break;
+	}
 	}
 }
 bool g_bRun = true;
@@ -125,14 +137,16 @@ void cmdThread(SOCKET _sock) {
 			send(_sock, (const char*)&logout, sizeof(Logout), 0);
 		}
 	}
-	
-	
+
+
 }
 int main()
 {
+#ifdef _WIN32
 	WORD ver = MAKEWORD(2, 2);
 	WSADATA dat;
 	WSAStartup(ver, &dat);
+#endif
 	SOCKET _sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (_sock == INVALID_SOCKET) {
 		printf("create error\n");
@@ -143,7 +157,11 @@ int main()
 	sockaddr_in _sin = {};
 	_sin.sin_family = AF_INET;
 	_sin.sin_port = htons(4567);
+#ifdef _WIN32
 	_sin.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
+#else
+	_sin.sin_addr.s_addr = inet_addr("192.168.0.103");
+#endif
 	int ret = connect(_sock, (sockaddr*)&_sin, sizeof(sockaddr));
 	if (ret == SOCKET_ERROR) {
 		printf("connect error\n");
@@ -151,7 +169,7 @@ int main()
 	else {
 		printf("connect success\n");
 	}
-	std::thread tl(cmdThread,_sock);
+	std::thread tl(cmdThread, _sock);
 	tl.detach();
 	while (g_bRun) {
 		fd_set fdReads;
@@ -172,11 +190,14 @@ int main()
 			}
 		}
 		//printf("we can do other\n");
-		
-	}
 
+	}
+#ifdef _WIN32
 	closesocket(_sock);
 	WSACleanup();
+#else
+	close(_sock);
+#endif
 	printf("exit \n");
 
 	getchar();
