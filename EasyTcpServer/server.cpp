@@ -1,10 +1,22 @@
+#define _WIN32
 #define WIN32_LEAN_AND_MEAN
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
-#include<Windows.h>
-#include<WinSock2.h>
+#ifdef _WIN32
+	#include<Windows.h>
+	#include<WinSock2.h>
+	#pragma comment(lib,"ws2_32.lib")
+#else
+	#include<unistd.h>
+	#include<arpa/inet.h>
+	#include<string.h>
+	#define SOCKET int
+	#define INVALID_SOCKET (SOCKET)(~0)
+	#define SOCKET_ERROR           (-1)
+#endif // _WIN32
+
 #include<stdio.h>
 #include<vector>
-#pragma comment(lib,"ws2_32.lib")
+
 enum CMD
 {
 	CMD_LOGIN,
@@ -68,10 +80,10 @@ std::vector<SOCKET> g_clients;
 int processor(SOCKET _cSock)
 {
 	char szRecv[1024] = {};
-	int nLen = recv(_cSock, (char*)&szRecv, sizeof(DataHeader), 0);
+	int nLen = (int)recv(_cSock, (char*)&szRecv, sizeof(DataHeader), 0);
 	DataHeader *header = (DataHeader*)szRecv;
 	if (nLen <= 0) {
-		printf("socket-%d client exit\n",_cSock);
+		printf("socket-%d client exit\n", _cSock);
 		return -1;
 	}
 	//printf("cmd:%d Len:%d\n", header.cmd, header.dataLength);
@@ -82,7 +94,7 @@ int processor(SOCKET _cSock)
 		Login *login;
 		recv(_cSock, szRecv + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
 		login = (Login*)szRecv;
-		printf("recv socket-%d cmd:login Len:%d username:%s password:%s\n", _cSock,login->dataLength, login->userName, login->PassWord);
+		printf("recv socket-%d cmd:login Len:%d username:%s password:%s\n", _cSock, login->dataLength, login->userName, login->PassWord);
 		LoginResult ret;
 		send(_cSock, (char*)&ret, sizeof(LoginResult), 0);
 		break;
@@ -92,7 +104,7 @@ int processor(SOCKET _cSock)
 		Logout *logout;
 		recv(_cSock, szRecv + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
 		logout = (Logout*)szRecv;
-		printf("recv socket-%d cmd:logout Len:%d username:%s\n", _cSock,logout->dataLength, logout->userName);
+		printf("recv socket-%d cmd:logout Len:%d username:%s\n", _cSock, logout->dataLength, logout->userName);
 		LogoutResult ret;
 		send(_cSock, (char*)&ret, sizeof(LogoutResult), 0);
 		break;
@@ -102,36 +114,42 @@ int processor(SOCKET _cSock)
 		send(_cSock, (char*)&header, sizeof(header), 0);
 		break;
 	}
+	return 0;
 }
 int main()
 {
+#ifdef _WIN32
 	WORD ver = MAKEWORD(2, 2);
 	WSADATA dat;
 	WSAStartup(ver, &dat);
-
-	SOCKET _sock = socket(AF_INET, SOCK_STREAM,IPPROTO_TCP);
+#endif // _WIN32
+	SOCKET _sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	sockaddr_in _sin = {};
 	_sin.sin_family = AF_INET;
 	_sin.sin_port = htons(4567);
 	//_sin.sin_addr.S_un.S_addr = inet_addr("192.168.0.103");
+#ifdef _WIN32
 	_sin.sin_addr.S_un.S_addr = htonl(INADDR_ANY);
-	if (bind(_sock, (sockaddr*)&_sin, sizeof(_sin)) == SOCKET_ERROR){
+#else
+	_sin.sin_addr.s_addr = htonl(INADDR_ANY);
+#endif
+	if (bind(_sock, (sockaddr*)&_sin, sizeof(_sin)) == SOCKET_ERROR) {
 		printf("绑定ERROR\n");
 	}
-	else{
+	else {
 
 		printf("绑定成功\n");
 	}
-	if (SOCKET_ERROR == listen(_sock, 5)){
+	if (SOCKET_ERROR == listen(_sock, 5)) {
 		printf("监听ERROR\n");
 	}
-	else{
+	else {
 
 		printf("监听成功\n");
 	}
-	
-	
-	while (true){
+
+
+	while (true) {
 		fd_set fdRead;
 		fd_set fdWrite;
 		fd_set fdExp;
@@ -141,13 +159,17 @@ int main()
 		FD_SET(_sock, &fdRead);
 		FD_SET(_sock, &fdWrite);
 		FD_SET(_sock, &fdExp);
+		SOCKET maxSock = _sock;
 		for (int n = 0; n < g_clients.size(); n++)
 		{
 			FD_SET(g_clients[n], &fdRead);
+			if (maxSock<g_clients[n]) {
+				maxSock = g_clients[n];
+			}
 		}
 		//文件描述符最大值+1，windows中可以写0
 		timeval t = { 1,0 };
-		int ret = select(_sock + 1, &fdRead, &fdWrite, &fdExp, &t);
+		int ret = select(maxSock + 1, &fdRead, &fdWrite, &fdExp, &t);
 		if (ret < 0) {
 			printf("select is over\n");
 			break;
@@ -158,39 +180,55 @@ int main()
 			int nAddrLen = sizeof(sockaddr_in);
 			SOCKET _cSock = INVALID_SOCKET;
 			char msgBuf[] = "hello,I'm Server\n";
+#ifdef _WIN32
 			_cSock = accept(_sock, (sockaddr*)&clientAddr, &nAddrLen);
+#else
+			_cSock = accept(_sock, (sockaddr*)&clientAddr, (socklen_t*)&nAddrLen);
+#endif // _WIN32
+
 			if (INVALID_SOCKET == _cSock) {
 				printf("接收无效客户端\n");
 			}
 			else {
 				for (int n = 0; n < g_clients.size(); n++)
-					{
-						NewUserJoin userJoin;
-						send(g_clients[n], (const char*)&userJoin, sizeof(NewUserJoin), 0);
-					}
-					printf("新客户端加入socket = %d IP:%s \n", (int)_cSock, inet_ntoa(clientAddr.sin_addr));
-					g_clients.push_back(_cSock);
+				{
+					NewUserJoin userJoin;
+					send(g_clients[n], (const char*)&userJoin, sizeof(NewUserJoin), 0);
+				}
+				printf("新客户端加入socket = %d IP:%s \n", (int)_cSock, inet_ntoa(clientAddr.sin_addr));
+				g_clients.push_back(_cSock);
 			}
-			
+
 		}
-		for (int n = 0; n< fdRead.fd_count; n++)
+		for (int n = 0; n < g_clients.size(); n++)
 		{
-			if (-1 == processor(fdRead.fd_array[n])){
-				auto iter = find(g_clients.begin(),g_clients.end(),fdRead.fd_array[n]);
-				if (iter != g_clients.end()) {
-					g_clients.erase(iter);
+			if (FD_ISSET(g_clients[n], &fdRead)) {
+				if (-1 == processor(g_clients[n])) {
+					std::vector<SOCKET>::iterator iter = g_clients.begin()+ n;
+					if (iter != g_clients.end()) {
+						g_clients.erase(iter);
+					}
 				}
 			}
 		}
-		//printf("we can do other\n");
-			
+
 	}
+#ifdef _WIN32
 	for (int n = 0; n < g_clients.size(); n++)
 	{
 		closesocket(g_clients[n]);
 	}
 	printf("exit \n");
+	closesocket(_sock);
 	WSACleanup();
+#else
+	for (int n = 0; n < g_clients.size(); n++)
+	{
+		close(g_clients[n]);
+	}
+	printf("exit \n");
+	close(_sock);
+#endif
 	getchar();
 	return 0;
 }
