@@ -33,13 +33,12 @@ int main()
 {
 	EasyTcpClient client;
 	client.initSocket();
-	client.Connect("127.0.0.1",4567);
+	client.Connect("127.0.0.1",4566);
 	std::thread t1(cmdThread, &client);
 	t1.detach();
 	while (client.isRun()) {
 		client.OnRun();
 	}
-	client.Close();
 	getchar();
 	return 0;
 }

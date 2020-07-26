@@ -47,11 +47,11 @@ public:
 			printf("create socket error\n");
 		}
 		else {
-			printf("create socket success\n");
+			printf("create socket = %d  success\n",_sock);
 		}
 	}
 	//连接服务器
-	int Connect(char* ip, short port) {
+	int Connect(const char* ip, short port) {
 		if (_sock == INVALID_SOCKET) {
 			initSocket();
 		}
@@ -65,10 +65,10 @@ public:
 #endif
 		int ret = connect(_sock, (sockaddr*)&_sin, sizeof(sockaddr));
 		if (ret == SOCKET_ERROR) {
-			printf("connect error\n");
+			printf("socket =%d  port = %d connect error\n",_sock,port);
 		}
 		else {
-			printf("connect success\n");
+			printf("socket =%d  port = %d connect success\n",_sock,port);
 		}
 		return ret;
 	}
@@ -86,25 +86,25 @@ public:
 		}
 
 	}
-	//发送数据
-	//接受数据
 	//处理网络消息
 	bool OnRun() {
 		if (isRun()) {
 			fd_set fdReads;
 			FD_ZERO(&fdReads);
 			FD_SET(_sock, &fdReads);
-			timeval t = { 1,0 };
+			timeval t = { 0,0 };
 			int ret = select(_sock, &fdReads, 0, 0, &t);
 			if (ret < 0) {
-				printf("socket = %d  select is over\n", _sock);
+				printf("socket = %d  select is over1\n", _sock);
+				Close();
 				return false;
 			}
 			if (FD_ISSET(_sock, &fdReads))
 			{
 				FD_CLR(_sock, &fdReads);
 				if (-1 == RecvData(_sock)) {
-					printf("socket = %d  select is over\n", _sock);
+					printf("socket = %d  select is over2\n", _sock);
+					Close();
 					return false;
 				}
 			}
