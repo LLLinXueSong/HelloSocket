@@ -115,8 +115,9 @@ public:
 	bool isRun() {
 		return _sock != INVALID_SOCKET;
 	}
-#define RECV_BUFF_SIZE 10240
-	//接收缓冲区
+#ifndef RECV_BUFF_SIZE
+	#define RECV_BUFF_SIZE 10240
+#endif // !RECV_BUFF_SIZE
 	char _szRecv[RECV_BUFF_SIZE] = {};
 	//第二缓冲区 消息缓冲区
 	char _szMsgBuf[RECV_BUFF_SIZE * 10] = {};
@@ -160,15 +161,13 @@ public:
 		case CMD_LOGIN_RESULT:
 		{
 			LoginResult *login;
-			
 			login = (LoginResult*)header;
-			printf("<socket=%d>recv server cmd:loginresult Len:%d \n",_sock, login->dataLength);
+			//printf("<socket=%d>recv server cmd:loginresult Len:%d \n",_sock, login->dataLength);
 			break;
 		}
 		case CMD_LOGOUT_RESULT:
 		{
 			LogoutResult *logout;
-			
 			logout = (LogoutResult*)header;
 			printf("<socket=%d> recv server cmd:loginresult Len:%d \n", _sock, logout->dataLength);
 			break;
@@ -176,7 +175,6 @@ public:
 		case CMD_NEW_USER_JOIN:
 		{
 			NewUserJoin *userJoin;
-			
 			userJoin = (NewUserJoin*)header;
 			printf("<socket=%d> new user join cmd:loginresult Len:%d \n", _sock,  userJoin->dataLength);
 			break;
