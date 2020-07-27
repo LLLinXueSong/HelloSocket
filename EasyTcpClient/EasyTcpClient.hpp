@@ -115,20 +115,42 @@ public:
 	bool isRun() {
 		return _sock != INVALID_SOCKET;
 	}
-
+#define RECV_BUFF_SIZE 10240
+	//接收缓冲区
+	char _szRecv[RECV_BUFF_SIZE] = {};
+	//第二缓冲区 消息缓冲区
+	char _szMsgBuf[RECV_BUFF_SIZE * 10] = {};
+	int _lastPos = 0;
 	//接受数据 处理粘包 拆分包
-	int RecvData(SOCKET _cSock)
+	int RecvData(SOCKET cSock)
 	{
-		char szRecv[1024] = {};
-		int nLen = recv(_cSock, (char*)&szRecv, sizeof(DataHeader), 0);
-		DataHeader *header = (DataHeader*)szRecv;
+		
+		int nLen = recv(cSock, _szRecv, RECV_BUFF_SIZE, 0);
+		DataHeader *header = (DataHeader*)_szRecv;
 		if (nLen <= 0) {
-			printf("socket-%d client exit", _cSock);
+			printf("socket-%d client exit", cSock);
 			return -1;
 		}
-		//printf("cmd:%d Len:%d\n", header.cmd, header.dataLength);
-		recv(_cSock, szRecv + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
-		OnNetMsg(header);
+		//将收取到数据拷贝到消息缓冲区
+		memcpy(_szMsgBuf+_lastPos, _szRecv, nLen);
+		//消息缓冲区的数据尾部位置后移
+		_lastPos += nLen;
+		while (_lastPos >= sizeof(DataHeader)) {
+			DataHeader *header = (DataHeader*)_szMsgBuf;
+			if (_lastPos >= header->dataLength) {
+				//剩余未处理消息缓冲区的长度
+				int nSize = _lastPos - header->dataLength;
+				OnNetMsg(header);
+				//将未处理数据前移
+				memcpy(_szMsgBuf, _szMsgBuf + header->dataLength, nSize);
+				_lastPos = nSize;
+			}
+			else {
+				break;
+			}
+
+		}
+
 		return 0;
 	}
 	//响应网络消息
@@ -140,7 +162,7 @@ public:
 			LoginResult *login;
 			
 			login = (LoginResult*)header;
-			printf("recv server cmd:loginresult Len:%d \n", login->dataLength);
+			printf("<socket=%d>recv server cmd:loginresult Len:%d \n",_sock, login->dataLength);
 			break;
 		}
 		case CMD_LOGOUT_RESULT:
@@ -148,7 +170,7 @@ public:
 			LogoutResult *logout;
 			
 			logout = (LogoutResult*)header;
-			printf("recv server cmd:loginresult Len:%d \n", logout->dataLength);
+			printf("<socket=%d> recv server cmd:loginresult Len:%d \n", _sock, logout->dataLength);
 			break;
 		}
 		case CMD_NEW_USER_JOIN:
@@ -156,8 +178,16 @@ public:
 			NewUserJoin *userJoin;
 			
 			userJoin = (NewUserJoin*)header;
-			printf("new user join cmd:loginresult Len:%d \n",  userJoin->dataLength);
+			printf("<socket=%d> new user join cmd:loginresult Len:%d \n", _sock,  userJoin->dataLength);
 			break;
+		}
+		case CMD_ERROR:
+		{
+			printf("<socket=%d> cmd:CMD_ERROR Len:%d \n", header->dataLength);
+			break;
+		}
+		default: {
+			printf("<socket=%d> undefine msg, Len:%d \n", _sock, header->dataLength);
 		}
 		}
 	}
