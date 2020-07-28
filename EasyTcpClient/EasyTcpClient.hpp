@@ -8,7 +8,6 @@
 	#include<Windows.h>
 	#include<WinSock2.h>
 	#pragma comment(lib,"ws2_32.lib")
-
 #else
 	#include<unistd.h>
 	#include<arpa/inet.h>
@@ -17,6 +16,9 @@
 	#define INVALID_SOCKET (SOCKET)(~0)
 	#define SOCKET_ERROR           (-1)
 #endif
+#ifndef RECV_BUFF_SIZE
+	#define RECV_BUFF_SIZE 10240
+#endif // !RECV_BUFF_SIZE
 #include<stdio.h>
 #include<thread>
 #include "MessageHeader.hpp"
@@ -115,9 +117,7 @@ public:
 	bool isRun() {
 		return _sock != INVALID_SOCKET;
 	}
-#ifndef RECV_BUFF_SIZE
-	#define RECV_BUFF_SIZE 10240
-#endif // !RECV_BUFF_SIZE
+
 	char _szRecv[RECV_BUFF_SIZE] = {};
 	//第二缓冲区 消息缓冲区
 	char _szMsgBuf[RECV_BUFF_SIZE * 10] = {};

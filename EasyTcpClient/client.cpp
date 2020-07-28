@@ -21,14 +21,24 @@ void cmdThread() {
 
 int main()
 {
-	const int cCount = 10;
+	
+	const int cCount = 5;
 	EasyTcpClient *client[cCount];
 	for (int i = 0; i < cCount; i++) {
+		if (!g_bRun) {
+			return 0;
+		}
 		client[i] = new EasyTcpClient();
 		client[i]->initSocket();
-		client[i]->Connect("127.0.0.1", 4566);
+		printf("%d\n", i);
 	}
-	
+	for (int i = 0; i < cCount; i++) {
+		if (!g_bRun) {
+			return 0;
+		}
+		client[i]->Connect("127.0.0.1", 4567);
+		printf("%d\n", i);
+	}
 	std::thread t1(cmdThread);
 	t1.detach();
 	Login login;

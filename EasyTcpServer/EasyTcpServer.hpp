@@ -1,11 +1,13 @@
 #ifndef _EasyTcpServer_hpp_
 #define  _EasyTcpServer_hpp_
 #ifdef _WIN32
+	#define FD_SETSIZE 1024
 	#define WIN32_LEAN_AND_MEAN
 	#define _WINSOCK_DEPRECATED_NO_WARNINGS
 	#include<Windows.h>
 	#include<WinSock2.h>
 	#pragma comment(lib,"ws2_32.lib")
+	
 #else
 	#include<unistd.h>
 	#include<arpa/inet.h>
@@ -21,6 +23,7 @@
 #include<stdio.h>
 #include<vector>
 #include "MessageHeader.hpp"
+#include "CELLTimestamp.hpp"
 class ClientSocket
 {
 public:
@@ -28,6 +31,7 @@ public:
 		_sockfd = sockfd;
 		memset(_szMsgBuf, 0, sizeof(_szMsgBuf));
 		_lastPos = 0;
+
 	}
 	SOCKET sockfd() {
 		return _sockfd;
@@ -45,15 +49,19 @@ private:
 	SOCKET _sockfd;
 	char _szMsgBuf[RECV_BUFF_SIZE * 10] = {};
 	int _lastPos = 0;
+
 };
 class EasyTcpServer
 {
 private:
 	SOCKET _sock;
+	CELLTimestamp _tTime;
+	int _recvCount;
 	std::vector<ClientSocket*> _clients;
 public:
 	EasyTcpServer() {
 		_sock = INVALID_SOCKET;
+		_recvCount = 0;
 	}
 	virtual ~EasyTcpServer() {
 		Close();
@@ -142,8 +150,8 @@ public:
 		}
 		else {
 			NewUserJoin userJoin;
-			SendDataToAll(&userJoin);
-			printf("socket=<%d> 新客户端加入socket = %d IP:%s \n", (int)_sock,(int)cSock, inet_ntoa(clientAddr.sin_addr));
+			//SendDataToAll(&userJoin);
+			//printf("socket=<%d> 新客户端加入socket = %d IP:%s \n", (int)_sock,(int)cSock, inet_ntoa(clientAddr.sin_addr));
 			_clients.push_back(new ClientSocket(cSock));
 		}
 		return cSock;
@@ -231,7 +239,7 @@ public:
 	int RecvData(ClientSocket* pClient)
 	{
 		
-		int nLen = (int)recv(pClient->sockfd(), _szRecv, sizeof(DataHeader), 0);
+		int nLen = (int)recv(pClient->sockfd(), _szRecv, RECV_BUFF_SIZE, 0);
 		if (nLen <= 0) {
 			printf("socket-%d client exit\n", pClient->sockfd());
 			return -1;
@@ -260,6 +268,13 @@ public:
 	}
 	//响应网络消息
 	virtual void OnNetMsg(SOCKET cSock,DataHeader *header) {
+		_recvCount++;
+		auto t1 = _tTime.getElapsedSecond();
+		if ( t1>= 1.0) {
+			printf("time<%lf>,socket<%d>, clients<%d>,recvCount<%d>\n", t1, _sock,_clients.size(), _recvCount);
+			_tTime.update();
+			_recvCount = 0;
+		}
 		switch (header->cmd)
 		{
 		case CMD_LOGIN:
