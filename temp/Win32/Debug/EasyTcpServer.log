@@ -1,8 +1,10 @@
 ﻿C:\Program Files (x86)\MSBuild\Microsoft.Cpp\v4.0\V140\Microsoft.CppBuild.targets(392,5): warning MSB8028: The intermediate directory (C:\Users\storm\Desktop\c++实习\HelloSocket\/temp/Win32/Debug\) contains files shared from another project (EasyTcpClient.vcxproj).  This can lead to incorrect clean and rebuild behavior.
   server.cpp
-c:\users\storm\desktop\c++实习\hellosocket\easytcpserver\server.cpp(134): warning C4018: “<”: 有符号/无符号不匹配
-c:\users\storm\desktop\c++实习\hellosocket\easytcpserver\server.cpp(158): warning C4018: “<”: 有符号/无符号不匹配
-c:\users\storm\desktop\c++实习\hellosocket\easytcpserver\server.cpp(169): warning C4018: “<”: 有符号/无符号不匹配
-c:\users\storm\desktop\c++实习\hellosocket\easytcpserver\server.cpp(96): warning C4715: “processor”: 不是所有的控件路径都返回值
+c:\users\storm\desktop\c++实习\hellosocket\easytcpserver\easytcpserver.hpp(163): warning C4018: “<”: 有符号/无符号不匹配
+c:\users\storm\desktop\c++实习\hellosocket\easytcpserver\easytcpserver.hpp(197): warning C4018: “<”: 有符号/无符号不匹配
+c:\users\storm\desktop\c++实习\hellosocket\easytcpserver\easytcpserver.hpp(216): warning C4018: “<”: 有符号/无符号不匹配
+c:\users\storm\desktop\c++实习\hellosocket\easytcpserver\easytcpserver.hpp(314): warning C4018: “<”: 有符号/无符号不匹配
+c:\users\storm\desktop\c++实习\hellosocket\easytcpserver\server.cpp(10): warning C4996: 'scanf': This function or variable may be unsafe. Consider using scanf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  c:\program files (x86)\windows kits\10\include\10.0.18362.0\ucrt\stdio.h(1274): note: 参见“scanf”的声明
   EasyTcpServer.vcxproj -> C:\Users\storm\Desktop\c++实习\HelloSocket\/bin/Win32/Debug\EasyTcpServer.exe
   EasyTcpServer.vcxproj -> C:\Users\storm\Desktop\c++实习\HelloSocket\/bin/Win32/Debug\EasyTcpServer.pdb (Full PDB)

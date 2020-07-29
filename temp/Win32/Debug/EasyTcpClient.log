@@ -1,3 +1,7 @@
-﻿  client.cpp
+﻿C:\Program Files (x86)\MSBuild\Microsoft.Cpp\v4.0\V140\Microsoft.CppBuild.targets(392,5): warning MSB8028: The intermediate directory (C:\Users\storm\Desktop\c++实习\HelloSocket\/temp/Win32/Debug\) contains files shared from another project (EasyTcpServer.vcxproj).  This can lead to incorrect clean and rebuild behavior.
+  client.cpp
+c:\users\storm\desktop\c++实习\hellosocket\easytcpclient\easytcpclient.hpp(184): warning C4473: “printf”: 没有为格式字符串传递足够的参数
+  c:\users\storm\desktop\c++实习\hellosocket\easytcpclient\easytcpclient.hpp(184): note: placeholders and their parameters expect 2 variadic arguments, but 1 were provided
+  c:\users\storm\desktop\c++实习\hellosocket\easytcpclient\easytcpclient.hpp(184): note: the missing variadic argument 2 is required by format string '%d'
   EasyTcpClient.vcxproj -> C:\Users\storm\Desktop\c++实习\HelloSocket\/bin/Win32/Debug\EasyTcpClient.exe
   EasyTcpClient.vcxproj -> C:\Users\storm\Desktop\c++实习\HelloSocket\/bin/Win32/Debug\EasyTcpClient.pdb (Full PDB)

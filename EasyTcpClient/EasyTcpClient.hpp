@@ -49,7 +49,7 @@ public:
 			printf("create socket error\n");
 		}
 		else {
-			printf("create socket = %d  success\n",_sock);
+			//printf("create socket = %d  success\n",_sock);
 		}
 	}
 	//连接服务器
@@ -70,7 +70,7 @@ public:
 			printf("socket =%d  port = %d connect error\n",_sock,port);
 		}
 		else {
-			printf("socket =%d  port = %d connect success\n",_sock,port);
+			//printf("socket =%d  port = %d connect success\n",_sock,port);
 		}
 		return ret;
 	}

@@ -2,47 +2,86 @@
 #include "EasyTcpClient.hpp"
 #include<thread>
 bool g_bRun = true;
+//启动客户端数量
+const int cCount = 50;
+//发送线程数量
+const int tCount = 4;
+EasyTcpClient *client[cCount];
 void cmdThread() {
 	while (true) {
 		char cmdBuf[256] = {};
 		scanf("%s", cmdBuf);
 		if (0 == strcmp(cmdBuf, "exit")) {
 			g_bRun = false;
-			printf("exit cmdThread.....\n");
+			printf("exit cmdThread.....\n"); 
 			break;
 		}
 		else {
 			printf("cmd error....\n");
 		}
 	}
+}
+void sendThread(int id) {
+	int c = cCount / tCount;
+	int begin = (id - 1)*c;
+	int end = id*c;
+	for (int i = 0; i < cCount; i++) {
+		if (!g_bRun) {
+			return ;
+		}
+		client[i] = new EasyTcpClient();
+		client[i]->initSocket();
+	}
+	for (int i = begin; i < end; i++) {
+		if (!g_bRun) {
+			return ;
+		}
+		Sleep(100);
+		client[i]->Connect("127.0.0.1", 4567);
+		printf("Connect:%d\n", i);
+	}
 
-
+	Login login;
+	strcpy(login.userName, "lyd");
+	strcpy(login.PassWord, "lydmima");
+	while (g_bRun) {
+		for (int i = begin; i < end; i++) {
+			client[i]->SendData(&login);
+			client[i]->OnRun();
+		}
+	}
+	for (int i = begin; i < end; i++) {
+		client[i]->Close();
+	}
 }
 
 int main()
 {
-	
-	const int cCount = 5;
-	EasyTcpClient *client[cCount];
-	for (int i = 0; i < cCount; i++) {
+	//启动发送线程
+	for (int n = 0; n < tCount; n++) {
+		std::thread t1(sendThread, n + 1);
+		t1.detach();
+	}
+	std::thread t1(cmdThread);
+	t1.detach();
+	/*for (int i = 0; i < cCount; i++) {
 		if (!g_bRun) {
 			return 0;
 		}
 		client[i] = new EasyTcpClient();
 		client[i]->initSocket();
-		printf("%d\n", i);
 	}
-	for (int i = 0; i < cCount; i++) {
+	for (int i =0; i < cCount; i++) {
 		if (!g_bRun) {
 			return 0;
 		}
+		Sleep(100);
 		client[i]->Connect("127.0.0.1", 4567);
-		printf("%d\n", i);
+		printf("Connect:%d\n", i);
 	}
-	std::thread t1(cmdThread);
-	t1.detach();
+
 	Login login;
-	strcpy(login.userName,"lyd");
+	strcpy(login.userName, "lyd");
 	strcpy(login.PassWord, "lydmima");
 	while (g_bRun) {
 		for (int i = 0; i < cCount; i++) {
@@ -52,8 +91,9 @@ int main()
 	}
 	for (int i = 0; i < cCount; i++) {
 		client[i]->Close();
-	}
-	
+	}*/
+	while (g_bRun)
+		Sleep(100);
 	getchar();
 	return 0;
 }
