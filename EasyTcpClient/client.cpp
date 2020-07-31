@@ -22,6 +22,7 @@ void cmdThread() {
 	}
 }
 void sendThread(int id) {
+	printf("thread<%d>  start\n",id);
 	int c = cCount / tCount;
 	int begin = (id - 1)*c;
 	int end = id*c;
@@ -38,8 +39,9 @@ void sendThread(int id) {
 		}
 		Sleep(100);
 		client[i]->Connect("127.0.0.1", 4567);
-		printf("Connect:%d\n", i);
+		
 	}
+	printf("Connect:begin=%d, end=%d\n", begin,end);
 	std::chrono::milliseconds t(1000);
 	std::this_thread::sleep_for(t);
 	Login login[10];
@@ -56,7 +58,9 @@ void sendThread(int id) {
 	}
 	for (int i = begin; i < end; i++) {
 		client[i]->Close();
+		delete client[i];
 	}
+	printf("thread<%d> exit\n", id);
 }
 
 int main()

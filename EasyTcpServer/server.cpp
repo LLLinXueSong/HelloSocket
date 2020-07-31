@@ -20,14 +20,56 @@ void cmdThread() {
 
 
 }
+class MyServer:public EasyTcpServer {
+public:
+	//多线程不安全
+	virtual void OnLeave(ClientSocket* pClient) {
+		_clientCount--;
+		printf("client<%d> exit\n", pClient->sockfd());
+	}
+	virtual void OnNetMsg(ClientSocket* pClient, DataHeader* header) {
+		_recvCount++;
+		switch (header->cmd)
+		{
+		case CMD_LOGIN:
+		{
+			Login *login;
+			login = (Login*)header;
+			//printf("recv socket-%d cmd:login Len:%d username:%s password:%s\n", cSock, login->dataLength, login->userName, login->PassWord);
+			LoginResult ret;
+			pClient->SendData(&ret);
+			break;
+		}
+		case CMD_LOGOUT:
+		{
+			Logout *logout;
+			logout = (Logout*)header;
+			//printf("recv socket-%d cmd:logout Len:%d username:%s\n", cSock, logout->dataLength, logout->userName);
+			LogoutResult ret;
+			//SendData(cSock, &ret);
+			break;
+		}
+		default:
+			printf("<socket=%d>, undefine msg, Len=%d\n", pClient->sockfd(), header->dataLength);
+			DataHeader ret;
+			//SendData(cSock, &ret);
+			break;
+		}
+	}
+	virtual void OnNetJoin(ClientSocket* pClient) {
+		_clientCount++;
+		printf("client<%d> join\n", pClient->sockfd());
+	}
+private:
+};
 int main()
 {
 
-	EasyTcpServer server;
+	MyServer server;
 	server.InitSocket();
 	server.Bind(nullptr, 4567);
 	server.Listen(5);
-	server.Start();
+	server.Start(4);
 	std::thread t1(cmdThread);
 	t1.detach();
 	while (g_bRun) {

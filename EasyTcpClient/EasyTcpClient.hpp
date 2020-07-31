@@ -27,6 +27,7 @@ class EasyTcpClient
 public:
 	EasyTcpClient() {
 		_sock = INVALID_SOCKET;
+		_isConnect = false;
 	}
 	virtual ~EasyTcpClient() {
 		Close();
@@ -70,6 +71,7 @@ public:
 			printf("socket =%d  port = %d connect error\n",_sock,port);
 		}
 		else {
+			_isConnect = true;
 			//printf("socket =%d  port = %d connect success\n",_sock,port);
 		}
 		return ret;
@@ -86,7 +88,7 @@ public:
 			printf("client exit \n");
 			_sock = INVALID_SOCKET;
 		}
-
+		_isConnect = false;
 	}
 	//处理网络消息
 	bool OnRun() {
@@ -115,7 +117,7 @@ public:
 		return false;
 	}
 	bool isRun() {
-		return _sock != INVALID_SOCKET;
+		return _sock != INVALID_SOCKET && _isConnect;
 	}
 
 	char _szRecv[RECV_BUFF_SIZE] = {};
@@ -191,13 +193,18 @@ public:
 	}
 	//发送数据
 	int SendData(DataHeader *header,int nLen) {
+		int ret = SOCKET_ERROR;
 		if (isRun() && header) {
-			return send(_sock, (const char*)header, nLen, 0);
+			ret = send(_sock, (const char*)header, nLen, 0);
+			if (SOCKET_ERROR == ret) {
+				Close();
+			}
 		}
-		return SOCKET_ERROR;
+		return ret;
 	}
 private:
 	SOCKET _sock;
+	bool _isConnect;
 };
 
 
