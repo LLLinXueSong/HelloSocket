@@ -58,7 +58,7 @@ public:
 	}
 	virtual void OnNetJoin(ClientSocket* pClient) {
 		_clientCount++;
-		printf("client<%d> join\n", pClient->sockfd());
+		//printf("client<%d> join\n", pClient->sockfd());
 	}
 private:
 };

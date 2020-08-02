@@ -20,7 +20,7 @@
 #ifndef RECV_BUFF_SIZE
 	#define RECV_BUFF_SIZE 10240
 #endif // !RECV_BUFF_SIZE
-
+#include<map>
 #include<atomic>
 #include<thread>
 #include<stdio.h>
@@ -81,7 +81,7 @@ private:
 	std::mutex _mutex;
 	SOCKET _sock;
 	std::thread _thread;
-	std::vector<ClientSocket*> _clients;
+	std::map<SOCKET,ClientSocket*> _clients;
 public:
 	CellServer(SOCKET sock = INVALID_SOCKET) {
 		_sock = sock;
@@ -109,15 +109,22 @@ public:
 		_thread = std::thread(std::mem_fn(&CellServer::OnRun), this);
 		
 	}
+	//备份socket fd_set
+	fd_set _fdRead_bak;
+	//客户是否发生改变
+	bool _clients_change;
+	SOCKET _maxSock;
 	//处理网络消息
 	bool OnRun() {
+		_clients_change = true;
 		while (isRun()) {
 			if (_clientsBuff.size() > 0) {
 				std::lock_guard<std::mutex> lock(_mutex);
 				for (auto pClient : _clientsBuff) {
-					_clients.push_back(pClient);
+					_clients[pClient->sockfd()]=pClient;
 				}
 				_clientsBuff.clear();
+				_clients_change = true;
 			}
 			if (_clients.empty())
 			{
@@ -129,57 +136,89 @@ public:
 			fd_set fdRead;
 			
 			FD_ZERO(&fdRead);
-		
-			SOCKET maxSock = _clients[0]->sockfd();
-			for (int n = 0; n < _clients.size(); n++)
-			{
-				FD_SET(_clients[n]->sockfd(), &fdRead);
-				if (maxSock<_clients[n]->sockfd()) {
-					maxSock = _clients[n]->sockfd();
+			if (_clients_change) {
+				_clients_change = false;
+				_maxSock = _clients.begin()->second->sockfd();
+				for (auto iter: _clients)
+				{
+					FD_SET(iter.second->sockfd(), &fdRead);
+					if (_maxSock<iter.second->sockfd()) {
+						_maxSock = iter.second->sockfd();
+					}
 				}
+				memcpy(&_fdRead_bak, &fdRead, sizeof(fd_set));
 			}
+			else {
+				memcpy(&fdRead, &_fdRead_bak, sizeof(fd_set));
+			}
+			
 			//文件描述符最大值+1，windows中可以写0
-			int ret = select(maxSock + 1, &fdRead,nullptr, nullptr, nullptr);
+			int ret = select(_maxSock + 1, &fdRead,nullptr, nullptr, nullptr);
 			if (ret < 0) {
 				printf("select is over\n");
 				Close();
 				return false;
 			}
-
-			for (int n = 0; n < _clients.size(); n++)
+			
+#ifdef _WIN32
+			for (int n = 0; n < fdRead.fd_count; n++)
 			{
-				if (FD_ISSET(_clients[n]->sockfd(), &fdRead)) {
-					if (-1 == RecvData(_clients[n])) {
-						std::vector<ClientSocket*>::iterator iter = _clients.begin() + n;
-						if (iter != _clients.end()) {
-							if (_pNetEvent) {
-								_pNetEvent->OnLeave(_clients[n]);
-							}
-							delete _clients[n];
-							_clients.erase(iter);
+				auto iter = _clients.find(fdRead.fd_array[n]);
+				if (iter != _clients.end()) {
+					if (-1 == RecvData(iter->second)) {
+						if (_pNetEvent) {
+							_pNetEvent->OnLeave(iter->second);
+							_clients_change = true;
+							_clients.erase(iter->first);
 						}
+					}
+
+				}
+				else {
+					printf("error iter == _client.end()\n");
+				}
+			
+			}
+#else
+			std::vector<ClientSocket*> temp;
+			for (auto iter : _clients) {
+				if (FD_ISSET(iter.second->sockfd(), &fdRead)) {
+					if (-1 == RecvData(iter.second)) {
+						if (_pNetEvent) {
+							_pNetEvent->OnLeave(iter.second);
+						}
+						_clients_change = false;
+						temp.push_back(iter.second);
 					}
 				}
 			}
+			for (auto pClient : temp) {
+				_clients.erase(pClient->sockfd());
+				delete pClient;
+			}
+#endif // _WIN32
+			
+		
+	
 		}
 	}
 	//关闭socket
 	void Close() {
 		if (_sock != INVALID_SOCKET) {
 #ifdef _WIN32
-			for (int n = 0; n < _clients.size(); n++)
+			for (auto iter : _clients)
 			{
-				closesocket(_clients[n]->sockfd());
-				delete _clients[n];
+				closesocket(iter.second->sockfd());
+				delete iter.second;
 			}
 			printf("exit \n");
 			closesocket(_sock);
 			WSACleanup();
 #else
-			for (int n = 0; n < _clients.size(); n++)
+			for (auto iter : _clients)
 			{
-				close(_clients[n]);
-				delete _clients[n];
+				close(iter.second->sockfd());
+				delete iter.second;
 			}
 			printf("exit \n");
 			close(_sock);
@@ -399,7 +438,7 @@ public:
 		if ( t1>= 1.0) {
 			
 			printf("thread<%d> time<%lf>,socket<%d>, clients<%d>,recvCount<%d>\n", _cellServers.size(),t1, _sock,(int)_clientCount,int(_recvCount/t1));
-			int _recvCount = 0;
+			_recvCount = 0;
 			_tTime.update();
 		}
 	
