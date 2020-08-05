@@ -1,16 +1,19 @@
-
+#include "CELLTimestamp.hpp"
 #include "EasyTcpClient.hpp"
 #include<thread>
+#include<atomic>
 bool g_bRun = true;
 //启动客户端数量
-const int cCount = 10;
+const int cCount = 8;
 //发送线程数量
 const int tCount = 4;
+std::atomic_int sendCount = 0;
+std::atomic_int readyCount = 0;
 EasyTcpClient *client[cCount];
 void cmdThread() {
 	while (true) {
 		char cmdBuf[256] = {};
-		scanf("%s", cmdBuf);
+		scanf_s("%s", cmdBuf);
 		if (0 == strcmp(cmdBuf, "exit")) {
 			g_bRun = false;
 			printf("exit cmdThread.....\n"); 
@@ -42,17 +45,23 @@ void sendThread(int id) {
 		
 	}
 	printf("Connect:begin=%d, end=%d\n", begin,end);
-	std::chrono::milliseconds t(1000);
-	std::this_thread::sleep_for(t);
-	Login login[10];
-	for (int i = 0; i < 10; i++) {
-		strcpy(login[i].userName, "lyd");
-		strcpy(login[i].PassWord, "lydmima");
+	readyCount++;
+	while (readyCount < tCount) {
+		std::chrono::milliseconds t(100);
+		std::this_thread::sleep_for(t);
+	}
+
+	Login login[1];
+	for (int i = 0; i < 1; i++) {
+		strcpy_s(login[i].userName, "lyd");
+		strcpy_s(login[i].PassWord, "lydmima");
 	}
 	int nLen = sizeof(login);
 	while (g_bRun) {
 		for (int i = begin; i < end; i++) {
-			client[i]->SendData(login,nLen);
+			if (SOCKET_ERROR != client[i]->SendData(login, nLen)) {
+				sendCount++;
+			}
 			client[i]->OnRun();
 		}
 	}
@@ -72,36 +81,17 @@ int main()
 	}
 	std::thread t1(cmdThread);
 	t1.detach();
-	//for (int i = 0; i < cCount; i++) {
-	//	if (!g_bRun) {
-	//		return 0;
-	//	}
-	//	client[i] = new EasyTcpClient();
-	//	client[i]->initSocket();
-	//}
-	//for (int i =0; i < cCount; i++) {
-	//	if (!g_bRun) {
-	//		return 0;
-	//	}
-	//	Sleep(100);
-	//	client[i]->Connect("127.0.0.1", 4567);
-	//	printf("Connect:%d\n", i);
-	//}
-
-	//Login login;
-	//strcpy(login.userName, "lyd");
-	//strcpy(login.PassWord, "lydmima");
-	//while (g_bRun) {
-	//	for (int i = 0; i < cCount; i++) {
-	//		client[i]->SendData(&login);
-	//		client[i]->OnRun();
-	//	}
-	//}
-	//for (int i = 0; i < cCount; i++) {
-	//	client[i]->Close();
-	//}
-	while (g_bRun)
-		Sleep(100);
+	CELLTimestamp tTime;
+	while (g_bRun) {
+		auto t = tTime.getElapsedSecond();
+		if (t >= 1.0) {
+			printf("thread<%d>,clients<%d>,time<%lf>,send<%d>\n", tCount, cCount,t,sendCount);
+			sendCount = 0;
+			tTime.update();
+		}
+		Sleep(1);
+	}
+		
 	getchar();
 	return 0;
 }

@@ -120,22 +120,19 @@ public:
 		return _sock != INVALID_SOCKET && _isConnect;
 	}
 
-	char _szRecv[RECV_BUFF_SIZE] = {};
 	//第二缓冲区 消息缓冲区
-	char _szMsgBuf[RECV_BUFF_SIZE * 10] = {};
+	char _szMsgBuf[RECV_BUFF_SIZE * 5] = {};
 	int _lastPos = 0;
 	//接受数据 处理粘包 拆分包
 	int RecvData(SOCKET cSock)
 	{
-		
-		int nLen = recv(cSock, _szRecv, RECV_BUFF_SIZE, 0);
-		DataHeader *header = (DataHeader*)_szRecv;
+		char* szRecv = _szMsgBuf + _lastPos;
+		int nLen = recv(cSock, szRecv, (RECV_BUFF_SIZE*5)-_lastPos, 0);
+		DataHeader *header = (DataHeader*)szRecv;
 		if (nLen <= 0) {
 			printf("socket-%d client exit", cSock);
 			return -1;
 		}
-		//将收取到数据拷贝到消息缓冲区
-		memcpy(_szMsgBuf+_lastPos, _szRecv, nLen);
 		//消息缓冲区的数据尾部位置后移
 		_lastPos += nLen;
 		while (_lastPos >= sizeof(DataHeader)) {

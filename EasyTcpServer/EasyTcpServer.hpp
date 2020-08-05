@@ -18,7 +18,7 @@
 #endif // _WIN32
 
 #ifndef RECV_BUFF_SIZE
-	#define RECV_BUFF_SIZE 10240
+	#define RECV_BUFF_SIZE 10240*10
 #endif // !RECV_BUFF_SIZE
 #include<map>
 #include<atomic>
@@ -58,7 +58,7 @@ public:
 	}
 private:
 	SOCKET _sockfd;
-	char _szMsgBuf[RECV_BUFF_SIZE * 10] = {};
+	char _szMsgBuf[RECV_BUFF_SIZE] = {};
 	int _lastPos = 0;
 
 };
@@ -71,6 +71,9 @@ public:
 	virtual void OnLeave(ClientSocket* pClient) = 0;
 	//客户端消息事件
 	virtual void OnNetMsg(ClientSocket* pClient, DataHeader* header) = 0;
+	//recv事件
+	virtual void OnNetRecv(ClientSocket* pClient) = 0;
+	
 };
 class CellServer {
 private:
@@ -159,7 +162,9 @@ public:
 				Close();
 				return false;
 			}
-			
+			else if(ret ==0){
+				continue;
+			}
 #ifdef _WIN32
 			for (int n = 0; n < fdRead.fd_count; n++)
 			{
@@ -230,19 +235,16 @@ public:
 	bool isRun() {
 		return _sock != INVALID_SOCKET;
 	}
-	//接收缓冲区
-	char _szRecv[RECV_BUFF_SIZE] = {};
 	//接受数据 处理粘包 拆分包
 	int RecvData(ClientSocket* pClient)
 	{
-	
-		int nLen = (int)recv(pClient->sockfd(), _szRecv, RECV_BUFF_SIZE, 0);
+		char* szRecv = pClient->msgBuf() + pClient->getLast();
+		int nLen = (int)recv(pClient->sockfd(), szRecv, (RECV_BUFF_SIZE)-pClient->getLast(), 0);
+		_pNetEvent->OnNetRecv(pClient);
 		if (nLen <= 0) {
 			//printf("socket-%d client exit\n", pClient->sockfd());
 			return -1;
 		}
-		//将收取到数据拷贝到消息缓冲区0
-		memcpy(pClient->msgBuf() + pClient->getLast(), _szRecv, nLen);
 		//消息缓冲区的数据尾部位置后移
 		pClient->setLastPos(pClient->getLast() + nLen);
 		while (pClient->getLast() >= sizeof(DataHeader)) {
@@ -284,9 +286,12 @@ private:
 	SOCKET _sock;
 	//每秒消息计时
 	CELLTimestamp _tTime;
+	
 	std::vector<CellServer*> _cellServers;
 protected:
 	//收到消息计数
+	std::atomic_int _msgCount;
+	//recv计数
 	std::atomic_int _recvCount;
 	//客户端离开计数
 	std::atomic_int _leaveCount;
@@ -295,6 +300,7 @@ protected:
 public:
 	EasyTcpServer() {
 		_sock = INVALID_SOCKET;
+		_msgCount = 0;
 		_recvCount = 0;
 		_leaveCount = 0;
 		_clientCount = 0;
@@ -437,8 +443,9 @@ public:
 		auto t1 = _tTime.getElapsedSecond();
 		if ( t1>= 1.0) {
 			
-			printf("thread<%d> time<%lf>,socket<%d>, clients<%d>,recvCount<%d>\n", _cellServers.size(),t1, _sock,(int)_clientCount,int(_recvCount/t1));
+			printf("thread<%d> time<%lf>,socket<%d>, clients<%d>,recvCount<%d>,msg<%d> \n", _cellServers.size(),t1, _sock,(int)_clientCount,int(_recvCount/t1),(int)(_msgCount/t1));
 			_recvCount = 0;
+			_msgCount = 0;
 			_tTime.update();
 		}
 	

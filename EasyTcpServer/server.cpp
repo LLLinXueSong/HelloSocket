@@ -28,7 +28,7 @@ public:
 		printf("client<%d> exit\n", pClient->sockfd());
 	}
 	virtual void OnNetMsg(ClientSocket* pClient, DataHeader* header) {
-		_recvCount++;
+		_msgCount++;
 		switch (header->cmd)
 		{
 		case CMD_LOGIN:
@@ -59,6 +59,10 @@ public:
 	virtual void OnNetJoin(ClientSocket* pClient) {
 		_clientCount++;
 		//printf("client<%d> join\n", pClient->sockfd());
+	}
+	virtual void OnNetRecv(ClientSocket* pClient) {
+		_recvCount++;
+		
 	}
 private:
 };
