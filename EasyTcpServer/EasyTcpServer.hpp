@@ -19,6 +19,7 @@
 
 #ifndef RECV_BUFF_SIZE
 	#define RECV_BUFF_SIZE 10240*10
+	#define SEND_BUFF_SIZE RECV_BUFF_SIZE
 #endif // !RECV_BUFF_SIZE
 #include<map>
 #include<atomic>
@@ -33,9 +34,10 @@ class ClientSocket
 public:
 	ClientSocket(SOCKET sockfd = INVALID_SOCKET) {
 		_sockfd = sockfd;
-		memset(_szMsgBuf, 0, sizeof(_szMsgBuf));
+		memset(_szMsgBuf, 0, RECV_BUFF_SIZE);
 		_lastPos = 0;
-
+		memset(_szSendBuf, 0, SEND_BUFF_SIZE);
+		_lastSendPos = 0;
 	}
 	SOCKET sockfd() {
 		return _sockfd;
@@ -49,18 +51,41 @@ public:
 	void setLastPos(int pos) {
 		_lastPos = pos;
 	}
-	//发送指定客户数据
+	//发送指定客户数据 添加发送缓冲区
 	int SendData(DataHeader *header) {
-		if (header) {
-			return send(_sockfd, (const char*)header, header->dataLength, 0);
-		}
-		return SOCKET_ERROR;
+		int ret = SOCKET_ERROR;
+		int nSendLen = header->dataLength;
+		const char* pSendData = (const char*)header;
+		while (true) {
+			if (_lastSendPos + nSendLen >= SEND_BUFF_SIZE) {
+				int nCopyLen = SEND_BUFF_SIZE - _lastSendPos;
+				memcpy(_szSendBuf+_lastSendPos, pSendData, nCopyLen);
+				//计算剩余数据的位置
+				pSendData += nCopyLen;
+				//计算剩余数据长度
+				nSendLen -= nCopyLen;
+				ret = send(_sockfd, _szSendBuf, SEND_BUFF_SIZE, 0);
+				_lastSendPos = 0;
+				if (SOCKET_ERROR == ret) {
+					return ret;
+				}
+			}
+			else {
+				memcpy(_szSendBuf + _lastSendPos, pSendData, nSendLen);
+				_lastSendPos += nSendLen;
+				break;
+			}
+		}		
+		return ret;
 	}
 private:
 	SOCKET _sockfd;
-	char _szMsgBuf[RECV_BUFF_SIZE] = {};
+	//接收缓冲区
+	char _szMsgBuf[RECV_BUFF_SIZE];
 	int _lastPos = 0;
-
+	//发送缓冲区
+	char _szSendBuf[SEND_BUFF_SIZE];
+	int _lastSendPos = 0;
 };
 class INetEvent
 {
