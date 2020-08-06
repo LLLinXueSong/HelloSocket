@@ -27,8 +27,8 @@ public:
 		_clientCount--;
 		printf("client<%d> exit\n", pClient->sockfd());
 	}
-	virtual void OnNetMsg(ClientSocket* pClient, DataHeader* header) {
-		_msgCount++;
+	virtual void OnNetMsg(CellServer* pCellServer,ClientSocket* pClient, DataHeader* header) {
+		EasyTcpServer::OnNetMsg(pCellServer,pClient, header);
 		switch (header->cmd)
 		{
 		case CMD_LOGIN:
@@ -36,8 +36,10 @@ public:
 			Login *login;
 			login = (Login*)header;
 			//printf("recv socket-%d cmd:login Len:%d username:%s password:%s\n", cSock, login->dataLength, login->userName, login->PassWord);
-			LoginResult ret;
-			pClient->SendData(&ret);
+			/*LoginResult ret;
+			pClient->SendData(&ret);*/
+			LoginResult* ret = new LoginResult();
+			pCellServer->addSendTask(pClient,ret);
 			break;
 		}
 		case CMD_LOGOUT:
@@ -57,13 +59,12 @@ public:
 		}
 	}
 	virtual void OnNetJoin(ClientSocket* pClient) {
-		_clientCount++;
-		//printf("client<%d> join\n", pClient->sockfd());
+		EasyTcpServer::OnNetJoin(pClient);		
 	}
-	virtual void OnNetRecv(ClientSocket* pClient) {
-		_recvCount++;
-		
+	virtual void OnNetLeave(ClientSocket* pClient) {
+		EasyTcpServer::OnLeave(pClient);
 	}
+
 private:
 };
 int main()

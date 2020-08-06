@@ -29,6 +29,7 @@
 #include<mutex>
 #include "MessageHeader.hpp"
 #include "CELLTimestamp.hpp"
+#include "CELLTask.hpp"
 class ClientSocket
 {
 public:
@@ -87,6 +88,7 @@ private:
 	char _szSendBuf[SEND_BUFF_SIZE];
 	int _lastSendPos = 0;
 };
+class CellServer;
 class INetEvent
 {
 public:
@@ -95,11 +97,26 @@ public:
 	//有客户端离开时通知
 	virtual void OnLeave(ClientSocket* pClient) = 0;
 	//客户端消息事件
-	virtual void OnNetMsg(ClientSocket* pClient, DataHeader* header) = 0;
+	virtual void OnNetMsg(CellServer* pCellServer,ClientSocket* pClient, DataHeader* header) = 0;
 	//recv事件
 	virtual void OnNetRecv(ClientSocket* pClient) = 0;
 	
 };
+//网络消息发送服务类
+class CellSend2ClientTask:public CellTask {
+	ClientSocket* _pClient;
+	DataHeader* _pHeader;
+public:
+	CellSend2ClientTask(ClientSocket* pClient, DataHeader* header) {
+		_pClient = pClient;
+		_pHeader = header;
+	}
+	void doTask() {
+		_pClient->SendData(_pHeader);
+		delete _pHeader;
+	}
+};
+//网络消息接收处理服务类
 class CellServer {
 private:
 	//网络事件对象
@@ -110,6 +127,7 @@ private:
 	SOCKET _sock;
 	std::thread _thread;
 	std::map<SOCKET,ClientSocket*> _clients;
+	CellTaskServer _taskServer;
 public:
 	CellServer(SOCKET sock = INVALID_SOCKET) {
 		_sock = sock;
@@ -118,6 +136,10 @@ public:
 	CellServer() {
 		Close();
 		_sock = INVALID_SOCKET;
+	}
+	void addSendTask(ClientSocket* pClient, DataHeader* header) {
+		CellSend2ClientTask* task = new CellSend2ClientTask(pClient, header);
+		_taskServer.addTask(task);
 	}
 	void addClient(ClientSocket* pClient) {
 		std::lock_guard<std::mutex> lock(_mutex);
@@ -135,7 +157,7 @@ public:
 		//thread 使用 void (*)(this) mem_fn可以将void(CellServer::*)(this) 转换
 		//把成员函数转化为函数对象，使用对象指针或对象引用进行绑定
 		_thread = std::thread(std::mem_fn(&CellServer::OnRun), this);
-		
+		_taskServer.Start();
 	}
 	//备份socket fd_set
 	fd_set _fdRead_bak;
@@ -292,7 +314,7 @@ public:
 
 	//响应网络消息
 	virtual void OnNetMsg(ClientSocket* pClient, DataHeader *header) {
-		_pNetEvent->OnNetMsg(pClient, header);
+		_pNetEvent->OnNetMsg(this,pClient, header);
 		
 	}
 
@@ -512,11 +534,16 @@ public:
 	virtual void OnLeave(ClientSocket* pClient) {
 		_clientCount--;
 	}
-	virtual void OnNetMsg(ClientSocket* pClient,DataHeader* header) {
-		_recvCount++;
+	virtual void OnNetMsg(CellServer* pCellServer,ClientSocket* pClient,DataHeader* header) {
+		_msgCount++;
 	}
 	virtual void OnNetJoin(ClientSocket* pClient) {
 		_clientCount++;
+		//printf("client<%d> join\n", pClient->sockfd());
+	}
+	virtual void OnNetRecv(ClientSocket* pClient) {
+		_recvCount++;
+
 	}
 };
 

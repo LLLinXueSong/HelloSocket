@@ -73,6 +73,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="CELLTask.hpp" />
     <ClCompile Include="server.cpp" />
   </ItemGroup>
   <ItemGroup>
