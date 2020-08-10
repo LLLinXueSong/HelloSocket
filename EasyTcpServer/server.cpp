@@ -23,45 +23,45 @@ void cmdThread() {
 class MyServer:public EasyTcpServer {
 public:
 	//多线程不安全
-	virtual void OnLeave(ClientSocket* pClient) {
+	virtual void OnLeave(CellClient* pClient) {
 		_clientCount--;
 		printf("client<%d> exit\n", pClient->sockfd());
 	}
-	virtual void OnNetMsg(CellServer* pCellServer,ClientSocket* pClient, DataHeader* header) {
+	virtual void OnNetMsg(CellServer* pCellServer,CellClient* pClient, netmsg_DataHeader* header) {
 		EasyTcpServer::OnNetMsg(pCellServer,pClient, header);
 		switch (header->cmd)
 		{
 		case CMD_LOGIN:
 		{
-			Login *login;
-			login = (Login*)header;
-			//printf("recv socket-%d cmd:login Len:%d username:%s password:%s\n", cSock, login->dataLength, login->userName, login->PassWord);
-			/*LoginResult ret;
+			netmsg_Login *Login;
+			Login = (netmsg_Login*)header;
+			//printf("recv socket-%d cmd:netmsg_Login Len:%d username:%s password:%s\n", cSock, netmsg_Login->dataLength, netmsg_Login->userName, netmsg_Login->PassWord);
+			/*netmsg_LoginR ret;
 			pClient->SendData(&ret);*/
-			LoginResult* ret = new LoginResult();
-			pCellServer->addSendTask(pClient,ret);
+			netmsg_LoginR* ret = new netmsg_LoginR();
+			pCellServer->addSendTask(pClient,ret);  //将发送解耦，原来需要等待发送完毕才能接收新数据，现在直接加到发送队列，新线程负责发送
 			break;
 		}
 		case CMD_LOGOUT:
 		{
-			Logout *logout;
-			logout = (Logout*)header;
-			//printf("recv socket-%d cmd:logout Len:%d username:%s\n", cSock, logout->dataLength, logout->userName);
-			LogoutResult ret;
+			netmsg_Logout *Logout;
+			Logout = (netmsg_Logout*)header;
+			//printf("recv socket-%d cmd:netmsg_Logout Len:%d username:%s\n", cSock, netmsg_Logout->dataLength, netmsg_Logout->userName);
+			netmsg_LogoutR ret;
 			//SendData(cSock, &ret);
 			break;
 		}
 		default:
 			printf("<socket=%d>, undefine msg, Len=%d\n", pClient->sockfd(), header->dataLength);
-			DataHeader ret;
+			netmsg_DataHeader ret;
 			//SendData(cSock, &ret);
 			break;
 		}
 	}
-	virtual void OnNetJoin(ClientSocket* pClient) {
+	virtual void OnNetJoin(CellClient* pClient) {
 		EasyTcpServer::OnNetJoin(pClient);		
 	}
-	virtual void OnNetLeave(ClientSocket* pClient) {
+	virtual void OnNetLeave(CellClient* pClient) {
 		EasyTcpServer::OnLeave(pClient);
 	}
 
