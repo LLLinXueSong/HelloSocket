@@ -10,6 +10,14 @@ const int tCount = 4;
 std::atomic_int sendCount = 0;
 std::atomic_int readyCount = 0;
 EasyTcpClient *client[cCount];
+
+void recvThread(int begin, int end) {
+	while (g_bRun) {
+		for (int i = begin; i < end; i++) {
+			client[i]->OnRun();
+		}
+	}
+}
 void cmdThread() {
 	while (true) {
 		char cmdBuf[256] = {};
@@ -47,10 +55,12 @@ void sendThread(int id) {
 	printf("Connect:begin=%d, end=%d\n", begin,end);
 	readyCount++;
 	while (readyCount < tCount) {
-		std::chrono::milliseconds t(100);
+		std::chrono::milliseconds t(10);
 		std::this_thread::sleep_for(t);
 	}
 
+	std::thread t1(recvThread, begin, end);
+	t1.detach();
 	Login login[1];
 	for (int i = 0; i < 1; i++) {
 		strcpy_s(login[i].userName, "lyd");
@@ -62,8 +72,9 @@ void sendThread(int id) {
 			if (SOCKET_ERROR != client[i]->SendData(login, nLen)) {
 				sendCount++;
 			}
-			client[i]->OnRun();
 		}
+		//std::chrono::milliseconds t(10);
+		//std::this_thread::sleep_for(t);
 	}
 	for (int i = begin; i < end; i++) {
 		client[i]->Close();

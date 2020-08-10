@@ -121,13 +121,13 @@ public:
 	}
 
 	//第二缓冲区 消息缓冲区
-	char _szMsgBuf[RECV_BUFF_SIZE * 5] = {};
+	char _szMsgBuf[RECV_BUFF_SIZE] = {};
 	int _lastPos = 0;
 	//接受数据 处理粘包 拆分包
 	int RecvData(SOCKET cSock)
 	{
 		char* szRecv = _szMsgBuf + _lastPos;
-		int nLen = recv(cSock, szRecv, (RECV_BUFF_SIZE*5)-_lastPos, 0);
+		int nLen = recv(cSock, szRecv, (RECV_BUFF_SIZE)-_lastPos, 0);
 		DataHeader *header = (DataHeader*)szRecv;
 		if (nLen <= 0) {
 			printf("socket-%d client exit", cSock);
