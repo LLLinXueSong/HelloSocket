@@ -3,28 +3,23 @@
 #include<thread>
 #include<mutex>
 #include<list>
+#include<functional>
 
-	//任务基类
-class CellTask {
-public:
-	CellTask() {}
-	virtual ~CellTask() {}
-	virtual void doTask() {}
-private:
-};
-
-
+//消息回复类
 class CellTaskServer {
+	//使用function代替函数指针
+	typedef std::function<void()> CellTask;
 private:
-	std::list<CellTask*> _tasks;
+	std::list<CellTask> _tasks;
 	//任务数据缓冲区
-	std::list<CellTask*> _tasksBuf;
+	std::list<CellTask> _tasksBuf;
 	std::mutex _mutex;
 	
 public:
 	CellTaskServer() {}
 	~CellTaskServer() {}
-	void addTask(CellTask* task) {
+	//传入为函数指针   addTask调用的时候直接定义匿名函数运行方法
+	void addTask(CellTask task) {
 		std::lock_guard<std::mutex> lock(_mutex);
 		_tasksBuf.push_back(task);
 
@@ -52,8 +47,7 @@ protected:
 				continue;
 			}
 			for (auto pTask : _tasks) {
-				pTask->doTask();
-				delete pTask;
+				pTask();
 			}
 			_tasks.clear();
 		}
