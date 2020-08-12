@@ -11,6 +11,8 @@ class CellClient
 {
 public:
 	CellClient(SOCKET sockfd = INVALID_SOCKET) {
+		static int n = 1;
+		id = n++;
 		_sockfd = sockfd;
 		memset(_szMsgBuf, 0, RECV_BUFF_SIZE);
 		_lastPos = 0;
@@ -23,6 +25,15 @@ public:
 		time.update();
 	}
 	~CellClient() {
+		printf("s = %d CellClient%d.~CellClient\n",serverId, id);
+		if (_sockfd != INVALID_SOCKET) {
+#ifdef _WIN32
+			closesocket(_sockfd);
+#else
+			close(_sockfd);
+#endif
+			_sockfd = INVALID_SOCKET;
+		}
 	}
 	SOCKET sockfd() {
 		return _sockfd;
@@ -140,6 +151,9 @@ private:
 	*/
 	//上次发送数据时间
 	time_t _dtSend;
+	public:
+		int id = -1;
+		int serverId = -1;
 };
 #endif // !_CellClient_hpp_
 

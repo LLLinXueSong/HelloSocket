@@ -13,18 +13,26 @@ private:
 	std::vector<CellClient*> _clientsBuff;
 	//缓冲队列锁
 	std::mutex _mutex;
-	SOCKET _sock;
-	std::thread _thread;
 	std::map<SOCKET, CellClient*> _clients;
 	CellTaskServer _taskServer;
+	//备份socket fd_set
+	fd_set _fdRead_bak;
+	//客户是否发生改变
+	bool _clients_change = true;
+	SOCKET _maxSock;
+	time_t _oldTime = CELLTime::getNowInMilliSec();
+	bool _bRun = false;
+	int _id = -1;
 public:
-	CellServer(SOCKET sock = INVALID_SOCKET) {
-		_sock = sock;
+	CellServer(int id) {
+		_id = id;
 		_pNetEvent = nullptr;
+		_taskServer._serverId = id;
 	}
-	CellServer() {
+	~CellServer() {
+		printf("CellServer%d.~CellServer  close1 begin\n", _id);
 		Close();
-		_sock = INVALID_SOCKET;
+		printf("CellServer%d.~CellServer  close2 end\n", _id);
 	}
 	//void addSendTask(CellClient* pClient, netmsg_DataHeader* header) {
 	//	//这里在缓冲区中直接调用函数指针所指向的函数，就是下边定义的匿名函数  不是要在这里直接执行发送数据的语句 下面是调用函数的语句
@@ -51,25 +59,30 @@ public:
 		return _clients.size() + _clientsBuff.size();
 	}
 	void Start() {
-		//thread 使用 void (*)(this) mem_fn可以将void(CellServer::*)(this) 转换
-		//把成员函数转化为函数对象，使用对象指针或对象引用进行绑定
-		_thread = std::thread(std::mem_fn(&CellServer::OnRun), this);
-		//启动发送线程
-		_taskServer.Start();
+		if (!_bRun) {
+			_bRun = true;
+			//thread 使用 void (*)(this) mem_fn可以将void(CellServer::*)(this) 转换
+			//把成员函数转化为函数对象，使用对象指针或对象引用进行绑定
+			std::thread t = std::thread(std::mem_fn(&CellServer::OnRun), this);
+			t.detach();
+			//启动发送线程
+			_taskServer.Start();
+		}
 	}
-	//备份socket fd_set
-	fd_set _fdRead_bak;
-	//客户是否发生改变
-	bool _clients_change;
-	SOCKET _maxSock;
+
 	//处理网络消息
 	bool OnRun() {
-		_clients_change = true;
-		while (isRun()) {
+		while (_bRun) {
 			if (_clientsBuff.size() > 0) {
 				std::lock_guard<std::mutex> lock(_mutex);
 				for (auto pClient : _clientsBuff) {
 					_clients[pClient->sockfd()] = pClient;
+					pClient->serverId = _id;
+					if (_pNetEvent) {
+						_pNetEvent->OnNetJoin(pClient);
+					}
+					
+					
 				}
 				_clientsBuff.clear();
 				_clients_change = true;
@@ -117,8 +130,9 @@ public:
 			CheckTime();
 
 		}
+		printf("CellServer%d.OnRun  exit\n", _id);
 	}
-	time_t _oldTime = CELLTime::getNowInMilliSec();
+
 	void CheckTime() {
 		auto nowTime = CELLTime::getNowInMilliSec();
 		int dt = int(nowTime - _oldTime);
@@ -129,6 +143,7 @@ public:
 					_pNetEvent->OnLeave(iter->second);
 				}
 				_clients_change = true;
+			
 				delete iter->second;
 				auto iterOld = iter;
 				iter++;
@@ -183,32 +198,21 @@ public:
 	}
 	//关闭socket
 	void Close() {
-		if (_sock != INVALID_SOCKET) {
-#ifdef _WIN32
-			for (auto iter : _clients)
-			{
-				closesocket(iter.second->sockfd());
-				delete iter.second;
-			}
-			printf("exit \n");
-			closesocket(_sock);
-			WSACleanup();
-#else
-			for (auto iter : _clients)
-			{
-				close(iter.second->sockfd());
-				delete iter.second;
-			}
-			printf("exit \n");
-			close(_sock);
-#endif
-			_clients.clear();
+		printf("CellServer%d.Close  close1 begin\n", _id);
+		_bRun = false;
+		_taskServer.Close();
+		for (auto iter : _clients)
+		{
+			delete iter.second;
 		}
+		_clients.clear();
+		for (auto iter : _clientsBuff) {
+			delete iter;
+		}
+		_clientsBuff.clear();
+		printf("CellServer%d.Close  close1 end\n", _id);
 	}
-	//是否工作中
-	bool isRun() {
-		return _sock != INVALID_SOCKET;
-	}
+
 	//接受数据 处理粘包 拆分包
 	int RecvData(CellClient* pClient)
 	{

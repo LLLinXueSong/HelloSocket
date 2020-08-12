@@ -160,13 +160,13 @@ public:
 			}
 		}
 		pMinServer->addClient(pClient);
-		OnNetJoin(pClient);
+		
 	}
 	void Start(int nCellServer) {
 
 		for (int n = 0; n < nCellServer; n++) {
 			
-			auto ser = new CellServer(_sock);
+			auto ser = new CellServer(n+1);
 			_cellServers.push_back(ser);
 			//注册网络事件接收对象
 			ser->setEventObj(this);
@@ -176,7 +176,12 @@ public:
 	}
 	//关闭socket
 	void Close() {
+		printf("EasyTcpServer.close1 \n");
 		if (_sock != INVALID_SOCKET) {
+			for (auto s : _cellServers) {
+				delete s;
+			}
+			_cellServers.clear();
 #ifdef _WIN32
 			printf("exit \n");
 			closesocket(_sock);
@@ -190,8 +195,9 @@ public:
 			printf("exit \n");
 			close(_sock);
 #endif
-		
+			_sock != INVALID_SOCKET;
 		}
+		printf("EasyTcpServer.close2 \n");
 	}
 	//输出每秒响应网络消息
 	void time4msg() {

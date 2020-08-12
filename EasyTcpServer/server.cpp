@@ -92,6 +92,8 @@ int main()
 	}
 	server.Close();
 	printf("server exit...\n");
-	getchar();
+	while (true) {
+		Sleep(1);
+	}
 	return 0;
 }

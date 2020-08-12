@@ -14,8 +14,11 @@ private:
 	//任务数据缓冲区
 	std::list<CellTask> _tasksBuf;
 	std::mutex _mutex;
+	bool _isRun = false;
+	bool _isWaitExit = false;
 	
 public:
+	int _serverId = -1;
 	CellTaskServer() {}
 	~CellTaskServer() {}
 	//传入为函数指针   addTask调用的时候直接定义匿名函数运行方法
@@ -26,12 +29,27 @@ public:
 	}
 
 	void Start(){
+		_isRun = true;
 		std::thread t(std::mem_fn(&CellTaskServer::OnRun), this);
 		t.detach();
 	}
+	void Close() {
+		if (_isRun) {
+			printf("CellTaskServer%d.close begin \n", _serverId);
+			_isRun = false;
+			_isWaitExit = true;
+			//阻塞等待onrun退出
+			while (_isWaitExit) {
+				std::chrono::milliseconds t(1);
+				std::this_thread::sleep_for(t);
+			}
+			printf("CellTaskServer%d.close end \n", _serverId);
+		}
+		
+	}
 protected:
 	void OnRun() {
-		while (true) {
+		while (_isRun) {
 			//缓冲区有任务
 			if (!_tasksBuf.empty()) {
 				std::lock_guard<std::mutex> lock(_mutex);
@@ -51,6 +69,8 @@ protected:
 			}
 			_tasks.clear();
 		}
+		printf("CellTaskServer%d.OnRun exit\n", _serverId);
+		_isWaitExit = false;
 	}
 };
 #endif // _CELL_TASK_H_
