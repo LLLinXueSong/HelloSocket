@@ -3,6 +3,8 @@
 
 enum CMD
 {
+	CMD_C2S_HEART,
+	CMD_S2C_HEART,
 	CMD_LOGIN,
 	CMD_LOGIN_RESULT,
 	CMD_LOGOUT,
@@ -10,59 +12,74 @@ enum CMD
 	CMD_NEW_USER_JOIN,
 	CMD_ERROR
 };
-struct DataHeader
+struct netmsg_DataHeader
 {
-	DataHeader() {
-		dataLength = sizeof(DataHeader);
+	netmsg_DataHeader() {
+		dataLength = sizeof(netmsg_DataHeader);
 	}
 	short dataLength;
 	short cmd;
 };
-struct Login :DataHeader
+struct netmsg_Login :netmsg_DataHeader
 {
-	Login() {
-		dataLength = sizeof(Login);
+	netmsg_Login() {
+		dataLength = sizeof(netmsg_Login);
 		cmd = CMD_LOGIN;
 	}
 	char userName[32];
 	char PassWord[32];
 	char data[32];
 };
-struct LoginResult :DataHeader
+struct netmsg_LoginR :netmsg_DataHeader
 {
-	LoginResult() {
-		dataLength = sizeof(LoginResult);
+	netmsg_LoginR() {
+		dataLength = sizeof(netmsg_LoginR);
 		cmd = CMD_LOGIN_RESULT;
 		result = 1;
 	}
 	int result;
 	char data[92];
 };
-struct Logout :DataHeader
+struct netmsg_Logout :netmsg_DataHeader
 {
-	Logout() {
-		dataLength = sizeof(Logout);
+	netmsg_Logout() {
+		dataLength = sizeof(netmsg_Logout);
 		cmd = CMD_LOGOUT;
 	}
 	char userName[32];
 	char PassWord[32];
 };
-struct LogoutResult :DataHeader
+struct netmsg_LogoutR :netmsg_DataHeader
 {
-	LogoutResult() {
-		dataLength = sizeof(LogoutResult);
+	netmsg_LogoutR() {
+		dataLength = sizeof(netmsg_LogoutR);
 		cmd = CMD_LOGOUT_RESULT;
 		result = 1;
 	}
 	int result;
 };
-struct NewUserJoin :DataHeader
+struct netmsg_NewUserJoin :netmsg_DataHeader
 {
-	NewUserJoin() {
-		dataLength = sizeof(NewUserJoin);
+	netmsg_NewUserJoin() {
+		dataLength = sizeof(netmsg_NewUserJoin);
 		cmd = CMD_NEW_USER_JOIN;
 		sock = 0;
 	}
 	int sock;
+};
+
+struct netmsg_c2s_Heart :netmsg_DataHeader
+{
+	netmsg_c2s_Heart() {
+		dataLength = sizeof(netmsg_c2s_Heart);
+		cmd = CMD_C2S_HEART;
+	}
+};
+struct netmsg_s2c_Heart :netmsg_DataHeader
+{
+	netmsg_s2c_Heart() {
+		dataLength = sizeof(netmsg_s2c_Heart);
+		cmd = CMD_S2C_HEART;
+	}
 };
 #endif

@@ -3,7 +3,10 @@
 
 #include "Cell.hpp"
 //客户端心跳检测计时
-#define CLIENT_HEART_DEAD_TIME 5000
+#define CLIENT_HEART_DEAD_TIME 60000
+//定时发送缓冲区时间
+#define CLIENT_SEND_BUFF_TIME 200
+//存放客户端
 class CellClient
 {
 public:
@@ -15,6 +18,7 @@ public:
 		_lastSendPos = 0;
 		_dtHeart = 0;
 		a = 0;
+		resetDTSend();
 		//resetDTHeart();
 		time.update();
 	}
@@ -47,6 +51,7 @@ public:
 				nSendLen -= nCopyLen;
 				ret = send(_sockfd, _szSendBuf, SEND_BUFF_SIZE, 0);
 				_lastSendPos = 0;
+				resetDTSend();
 				if (SOCKET_ERROR == ret) {
 					return ret;
 				}
@@ -62,6 +67,10 @@ public:
 
 	void resetDTHeart() {
 		a = 0;
+		_dtHeart = 0;
+	}
+	void resetDTSend() {
+		_dtSend = 0;
 	}
 	void resetA() {
 		_dtHeart = 0;
@@ -87,6 +96,31 @@ public:
 		}
 		return false;
 	}
+	//立即发送数据
+	int SendDataReal(netmsg_DataHeader* header) {
+		SendData(header);
+		SendDataReal();
+	}
+	int SendDataReal() {
+		int ret = SOCKET_ERROR;
+		if (_lastSendPos > 0 && SOCKET_ERROR!=_sockfd) {
+			ret = send(_sockfd, _szSendBuf, _lastSendPos, 0);
+			_lastSendPos = 0;
+			resetDTSend();
+		}
+		return ret;
+	}
+	bool checkSend(int dt) {
+		_dtSend = _dtSend + dt;
+		if (_dtSend >= CLIENT_HEART_DEAD_TIME) {
+			//printf("checkSend dead socket:%d,time=%d\n", _sockfd, _dtSend);
+			//时间到了立即发送数据 清空发送
+			SendDataReal();
+			resetDTSend();
+			return true;
+		}
+		return false;
+	}
 	CELLTimestamp time;
 private:
 	SOCKET _sockfd;
@@ -104,7 +138,8 @@ private:
 	a的操作逻辑和_dtHeart相同，但是使用a不能正确执行
 	
 	*/
-	
+	//上次发送数据时间
+	time_t _dtSend;
 };
 #endif // !_CellClient_hpp_
 

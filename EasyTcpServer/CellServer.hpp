@@ -124,16 +124,6 @@ public:
 		int dt = int(nowTime - _oldTime);
 		_oldTime = nowTime;
 		for (auto iter = _clients.begin(); iter != _clients.end();) {
-			//if (iter->second->time.getElapsedTimeInMilliSec()>= CLIENT_HEART_DEAD_TIME) {
-			//	if (_pNetEvent) {
-			//		_pNetEvent->OnLeave(iter->second);
-			//	}
-			//	_clients_change = true;
-			//	delete iter->second;
-			//	auto iterOld = iter++;
-			//	_clients.erase(iterOld);
-			//	continue;
-			//}
 			if (iter->second->checkHeart(dt)) {
 				if (_pNetEvent) {
 					_pNetEvent->OnLeave(iter->second);
@@ -145,6 +135,7 @@ public:
 				_clients.erase(iterOld);
 				continue;
 			}
+			iter->second->checkSend(dt);
 			iter++;
 		}
 	}

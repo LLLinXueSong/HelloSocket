@@ -35,6 +35,7 @@ public:
 		{
 		case CMD_LOGIN:
 		{
+			pClient->resetDTHeart();
 			netmsg_Login *Login;
 			Login = (netmsg_Login*)header;
 			//printf("recv socket-%d cmd:netmsg_Login Len:%d username:%s password:%s\n", cSock, netmsg_Login->dataLength, netmsg_Login->userName, netmsg_Login->PassWord);

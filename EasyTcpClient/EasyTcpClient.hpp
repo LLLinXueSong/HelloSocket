@@ -128,15 +128,15 @@ public:
 	{
 		char* szRecv = _szMsgBuf + _lastPos;
 		int nLen = recv(cSock, szRecv, (RECV_BUFF_SIZE)-_lastPos, 0);
-		DataHeader *header = (DataHeader*)szRecv;
+		netmsg_DataHeader *header = (netmsg_DataHeader*)szRecv;
 		if (nLen <= 0) {
 			printf("socket-%d client exit", cSock);
 			return -1;
 		}
 		//消息缓冲区的数据尾部位置后移
 		_lastPos += nLen;
-		while (_lastPos >= sizeof(DataHeader)) {
-			DataHeader *header = (DataHeader*)_szMsgBuf;
+		while (_lastPos >= sizeof(netmsg_DataHeader)) {
+			netmsg_DataHeader *header = (netmsg_DataHeader*)_szMsgBuf;
 			if (_lastPos >= header->dataLength) {
 				//剩余未处理消息缓冲区的长度
 				int nSize = _lastPos - header->dataLength;
@@ -154,28 +154,28 @@ public:
 		return 0;
 	}
 	//响应网络消息
-	void OnNetMsg(DataHeader *header) {
+	void OnNetMsg(netmsg_DataHeader *header) {
 		switch (header->cmd)
 		{
 		case CMD_LOGIN_RESULT:
 		{
-			LoginResult *login;
-			login = (LoginResult*)header;
-			//printf("<socket=%d>recv server cmd:loginresult Len:%d \n",_sock, login->dataLength);
+			netmsg_LoginR *login;
+			login = (netmsg_LoginR*)header;
+			//printf("<socket=%d>recv server cmd:netmsg_LoginR Len:%d \n",_sock, login->dataLength);
 			break;
 		}
 		case CMD_LOGOUT_RESULT:
 		{
-			LogoutResult *logout;
-			logout = (LogoutResult*)header;
-			printf("<socket=%d> recv server cmd:loginresult Len:%d \n", _sock, logout->dataLength);
+			netmsg_LogoutR *logout;
+			logout = (netmsg_LogoutR*)header;
+			printf("<socket=%d> recv server cmd:netmsg_LoginR Len:%d \n", _sock, logout->dataLength);
 			break;
 		}
 		case CMD_NEW_USER_JOIN:
 		{
-			NewUserJoin *userJoin;
-			userJoin = (NewUserJoin*)header;
-			printf("<socket=%d> new user join cmd:loginresult Len:%d \n", _sock,  userJoin->dataLength);
+			netmsg_NewUserJoin *userJoin;
+			userJoin = (netmsg_NewUserJoin*)header;
+			printf("<socket=%d> new user join cmd:netmsg_LoginR Len:%d \n", _sock,  userJoin->dataLength);
 			break;
 		}
 		case CMD_ERROR:
@@ -189,7 +189,7 @@ public:
 		}
 	}
 	//发送数据
-	int SendData(DataHeader *header,int nLen) {
+	int SendData(netmsg_DataHeader *header,int nLen) {
 		int ret = SOCKET_ERROR;
 		if (isRun() && header) {
 			ret = send(_sock, (const char*)header, nLen, 0);
