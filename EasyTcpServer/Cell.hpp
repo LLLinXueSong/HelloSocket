@@ -21,7 +21,6 @@
 		#define INVALID_SOCKET (SOCKET)(~0)
 		#define SOCKET_ERROR           (-1)
 	#endif // _WIN32
-
 	#ifndef RECV_BUFF_SIZE
 		#define RECV_BUFF_SIZE 10240*10
 		#define SEND_BUFF_SIZE RECV_BUFF_SIZE

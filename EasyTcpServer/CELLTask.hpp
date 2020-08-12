@@ -7,7 +7,7 @@
 
 //消息回复类
 class CellTaskServer {
-	//使用function代替函数指针
+	//使用function代替函数指针   CellTask的具体操作需要看后边匿名函数定义
 	typedef std::function<void()> CellTask;
 private:
 	std::list<CellTask> _tasks;

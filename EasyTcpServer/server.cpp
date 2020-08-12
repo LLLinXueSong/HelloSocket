@@ -3,6 +3,8 @@
 #include<vector>
 #include "EasyTcpServer.hpp"
 #include<thread>
+
+
 bool g_bRun = 1;
 void cmdThread() {
 	while (true) {
@@ -36,12 +38,19 @@ public:
 			netmsg_Login *Login;
 			Login = (netmsg_Login*)header;
 			//printf("recv socket-%d cmd:netmsg_Login Len:%d username:%s password:%s\n", cSock, netmsg_Login->dataLength, netmsg_Login->userName, netmsg_Login->PassWord);
-			/*netmsg_LoginR ret;
-			pClient->SendData(&ret);*/
-			netmsg_LoginR* ret = new netmsg_LoginR();
-			pCellServer->addSendTask(pClient,ret);  //将发送解耦，原来需要等待发送完毕才能接收新数据，现在直接加到发送队列，新线程负责发送
+			netmsg_LoginR ret;
+			pClient->SendData(&ret);
+			//netmsg_LoginR* ret = new netmsg_LoginR();
+			//pCellServer->addSendTask(pClient,ret);  //将发送解耦，原来需要等待发送完毕才能接收新数据，现在直接加到发送队列，新线程负责发送
 			break;
 		}
+		case CMD_C2S_HEART: {
+			pClient->resetDTHeart();
+			netmsg_s2c_Heart ret;
+			pClient->SendData(&ret);
+			break;
+		}
+		
 		case CMD_LOGOUT:
 		{
 			netmsg_Logout *Logout;
@@ -74,7 +83,7 @@ int main()
 	server.InitSocket();
 	server.Bind(nullptr, 4567);
 	server.Listen(5);
-	server.Start(4);
+	server.Start(2);
 	std::thread t1(cmdThread);
 	t1.detach();
 	while (g_bRun) {

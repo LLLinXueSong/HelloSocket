@@ -2,6 +2,8 @@
 #define _CellClient_hpp_
 
 #include "Cell.hpp"
+//客户端心跳检测计时
+#define CLIENT_HEART_DEAD_TIME 5000
 class CellClient
 {
 public:
@@ -11,6 +13,12 @@ public:
 		_lastPos = 0;
 		memset(_szSendBuf, 0, SEND_BUFF_SIZE);
 		_lastSendPos = 0;
+		_dtHeart = 0;
+		a = 0;
+		//resetDTHeart();
+		time.update();
+	}
+	~CellClient() {
 	}
 	SOCKET sockfd() {
 		return _sockfd;
@@ -51,6 +59,35 @@ public:
 		}
 		return ret;
 	}
+
+	void resetDTHeart() {
+		a = 0;
+	}
+	void resetA() {
+		_dtHeart = 0;
+	}
+	//心跳检测
+	bool checkHeart(int dt) {
+	
+		//printf("%d\n", dt);
+		//printf("%d\n", a);
+		a = a + dt;
+		_dtHeart = _dtHeart + dt;
+
+		//printf("%d\n", _dtHeart);
+		//char* p = (char*)&a;
+		//for (int i = 0; i < 8; i++) {_dtHeart
+		//	printf("%x", *p);
+		//	p--;
+		//}
+		//printf("\n");
+		if (_dtHeart >= CLIENT_HEART_DEAD_TIME) {
+			printf("checkHeart dead socket:%d,time=%d\n", _sockfd, _dtHeart);
+			return true;
+		}
+		return false;
+	}
+	CELLTimestamp time;
 private:
 	SOCKET _sockfd;
 	//接收缓冲区
@@ -59,6 +96,15 @@ private:
 	//发送缓冲区
 	char _szSendBuf[SEND_BUFF_SIZE];
 	int _lastSendPos = 0;
+	//心跳死亡计时
+	int _dtHeart = 0;
+	int a = 0;
+	/*
+	不知道是什么bug  删除变量a就会不能正确执行逻辑
+	a的操作逻辑和_dtHeart相同，但是使用a不能正确执行
+	
+	*/
+	
 };
 #endif // !_CellClient_hpp_
 

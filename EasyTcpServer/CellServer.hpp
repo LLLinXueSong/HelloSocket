@@ -5,7 +5,6 @@
 #include <map>
 #include <vector>
 
-
 //网络消息接收处理服务类
 class CellServer {
 private:
@@ -27,12 +26,18 @@ public:
 		Close();
 		_sock = INVALID_SOCKET;
 	}
-	void addSendTask(CellClient* pClient, netmsg_DataHeader* header) {
-		_taskServer.addTask([pClient, header]() {
-			pClient->SendData(header);
-			delete header;
-		});
-	}
+	//void addSendTask(CellClient* pClient, netmsg_DataHeader* header) {
+	//	//这里在缓冲区中直接调用函数指针所指向的函数，就是下边定义的匿名函数  不是要在这里直接执行发送数据的语句 下面是调用函数的语句
+	//	/*
+	//		for (auto pTask : _tasks) {
+	//			pTask();
+	//		}
+	//	*/
+	//	_taskServer.addTask([pClient, header]() {
+	//		pClient->SendData(header);
+	//		delete header;
+	//	});
+	//}
 	void addClient(CellClient* pClient) {
 		std::lock_guard<std::mutex> lock(_mutex);
 		//_mutex.lock();
@@ -71,6 +76,8 @@ public:
 			}
 			if (_clients.empty())
 			{
+				//更改心跳时间戳
+				_oldTime = CELLTime::getNowInMilliSec();
 				std::chrono::milliseconds t(1);
 				std::this_thread::sleep_for(t);
 				continue;
@@ -94,58 +101,94 @@ public:
 			else {
 				memcpy(&fdRead, &_fdRead_bak, sizeof(fd_set));
 			}
-
+			timeval t{ 0,1 };
 			//文件描述符最大值+1，windows中可以写0
-			int ret = select(_maxSock + 1, &fdRead, nullptr, nullptr, nullptr);
+			int ret = select(_maxSock + 1, &fdRead, nullptr, nullptr, &t);
 			if (ret < 0) {
 				printf("select is over\n");
 				Close();
 				return false;
 			}
-			else if (ret == 0) {
-				continue;
-			}
-#ifdef _WIN32
-			for (int n = 0; n < fdRead.fd_count; n++)
-			{
-				auto iter = _clients.find(fdRead.fd_array[n]);
-				if (iter != _clients.end()) {
-					if (-1 == RecvData(iter->second)) {
-						if (_pNetEvent) {
-							_pNetEvent->OnLeave(iter->second);
-							_clients_change = true;
-							_clients.erase(iter->first);
-						}
-					}
+			//else if (ret == 0) {
+			//	continue;
+			//}
 
-				}
-				else {
-					printf("error iter == _client.end()\n");
-				}
-
-			}
-#else
-			std::vector<CellClient*> temp;
-			for (auto iter : _clients) {
-				if (FD_ISSET(iter.second->sockfd(), &fdRead)) {
-					if (-1 == RecvData(iter.second)) {
-						if (_pNetEvent) {
-							_pNetEvent->OnLeave(iter.second);
-						}
-						_clients_change = false;
-						temp.push_back(iter.second);
-					}
-				}
-			}
-			for (auto pClient : temp) {
-				_clients.erase(pClient->sockfd());
-				delete pClient;
-			}
-#endif // _WIN32
-
-
+			ReadData(fdRead);
+			CheckTime();
 
 		}
+	}
+	time_t _oldTime = CELLTime::getNowInMilliSec();
+	void CheckTime() {
+		auto nowTime = CELLTime::getNowInMilliSec();
+		int dt = int(nowTime - _oldTime);
+		_oldTime = nowTime;
+		for (auto iter = _clients.begin(); iter != _clients.end();) {
+			//if (iter->second->time.getElapsedTimeInMilliSec()>= CLIENT_HEART_DEAD_TIME) {
+			//	if (_pNetEvent) {
+			//		_pNetEvent->OnLeave(iter->second);
+			//	}
+			//	_clients_change = true;
+			//	delete iter->second;
+			//	auto iterOld = iter++;
+			//	_clients.erase(iterOld);
+			//	continue;
+			//}
+			if (iter->second->checkHeart(dt)) {
+				if (_pNetEvent) {
+					_pNetEvent->OnLeave(iter->second);
+				}
+				_clients_change = true;
+				delete iter->second;
+				auto iterOld = iter;
+				iter++;
+				_clients.erase(iterOld);
+				continue;
+			}
+			iter++;
+		}
+	}
+	void ReadData(fd_set& fdRead) {
+#ifdef _WIN32
+		for (int n = 0; n < fdRead.fd_count; n++)
+		{
+			auto iter = _clients.find(fdRead.fd_array[n]);
+			if (iter != _clients.end()) {
+				if (-1 == RecvData(iter->second)) {
+					if (_pNetEvent) {
+						_pNetEvent->OnLeave(iter->second);
+						_clients_change = true;	
+						closesocket(iter->first);
+						delete iter->second;
+						_clients.erase(iter->first);
+					}
+				}
+
+			}
+			else {
+				printf("error iter == _client.end()\n");
+			}
+
+		}
+#else
+		std::vector<CellClient*> temp;
+		for (auto iter : _clients) {
+			if (FD_ISSET(iter.second->sockfd(), &fdRead)) {
+				if (-1 == RecvData(iter.second)) {
+					if (_pNetEvent) {
+						_pNetEvent->OnLeave(iter.second);
+					}
+					_clients_change = true;
+					close(iter->first);
+					temp.push_back(iter.second);
+				}
+			}
+		}
+		for (auto pClient : temp) {
+			_clients.erase(pClient->sockfd());
+			delete pClient;
+		}
+#endif // _WIN32
 	}
 	//关闭socket
 	void Close() {
