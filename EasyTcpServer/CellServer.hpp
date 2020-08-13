@@ -4,7 +4,7 @@
 #include "INetEvent.hpp"
 #include <map>
 #include <vector>
-
+#include "CELLSemaphore.hpp"
 //网络消息接收处理服务类
 class CellServer {
 private:
@@ -23,6 +23,7 @@ private:
 	time_t _oldTime = CELLTime::getNowInMilliSec();
 	bool _bRun = false;
 	int _id = -1;
+	CELLSemaphore _sem;
 public:
 	CellServer(int id) {
 		_id = id;
@@ -131,6 +132,8 @@ public:
 
 		}
 		printf("CellServer%d.OnRun  exit\n", _id);
+		ClearClients();
+		_sem.wakeup();
 	}
 
 	void CheckTime() {
@@ -199,8 +202,15 @@ public:
 	//关闭socket
 	void Close() {
 		printf("CellServer%d.Close  close1 begin\n", _id);
-		_bRun = false;
-		_taskServer.Close();
+		if (_bRun) {
+			_taskServer.Close();
+			_bRun = false;
+			_sem.wait();
+		
+		}
+		printf("CellServer%d.Close  close1 end\n", _id);
+	}
+	void ClearClients() {
 		for (auto iter : _clients)
 		{
 			delete iter.second;
@@ -210,9 +220,7 @@ public:
 			delete iter;
 		}
 		_clientsBuff.clear();
-		printf("CellServer%d.Close  close1 end\n", _id);
 	}
-
 	//接受数据 处理粘包 拆分包
 	int RecvData(CellClient* pClient)
 	{

@@ -4,7 +4,7 @@
 #include<mutex>
 #include<list>
 #include<functional>
-
+#include "CELLSemaphore.hpp"
 //消息回复类
 class CellTaskServer {
 	//使用function代替函数指针   CellTask的具体操作需要看后边匿名函数定义
@@ -15,8 +15,7 @@ private:
 	std::list<CellTask> _tasksBuf;
 	std::mutex _mutex;
 	bool _isRun = false;
-	bool _isWaitExit = false;
-	
+	CELLSemaphore _sem;
 public:
 	int _serverId = -1;
 	CellTaskServer() {}
@@ -34,18 +33,12 @@ public:
 		t.detach();
 	}
 	void Close() {
-		if (_isRun) {
-			printf("CellTaskServer%d.close begin \n", _serverId);
+		printf("CellTaskServer%d.close begin \n", _serverId);
+		if (_isRun) {	
 			_isRun = false;
-			_isWaitExit = true;
-			//阻塞等待onrun退出
-			while (_isWaitExit) {
-				std::chrono::milliseconds t(1);
-				std::this_thread::sleep_for(t);
-			}
-			printf("CellTaskServer%d.close end \n", _serverId);
+			_sem.wait();
 		}
-		
+		printf("CellTaskServer%d.close end \n", _serverId);
 	}
 protected:
 	void OnRun() {
@@ -70,7 +63,7 @@ protected:
 			_tasks.clear();
 		}
 		printf("CellTaskServer%d.OnRun exit\n", _serverId);
-		_isWaitExit = false;
+		_sem.wakeup();
 	}
 };
 #endif // _CELL_TASK_H_
