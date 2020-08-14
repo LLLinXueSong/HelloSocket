@@ -28,10 +28,10 @@ public:
 			++_wakeup;
 			_cv.notify_one();
 		}
-		else
+		/*else
 		{
 			printf("CELLSemaphore wakeup error.\n");
-		}
+		}*/
 		
 	}
 private:

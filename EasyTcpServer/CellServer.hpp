@@ -21,9 +21,8 @@ private:
 	bool _clients_change = true;
 	SOCKET _maxSock;
 	time_t _oldTime = CELLTime::getNowInMilliSec();
-	bool _bRun = false;
 	int _id = -1;
-	CELLSemaphore _sem;
+	CELLThread _thread;
 public:
 	CellServer(int id) {
 		_id = id;
@@ -60,20 +59,20 @@ public:
 		return _clients.size() + _clientsBuff.size();
 	}
 	void Start() {
-		if (!_bRun) {
-			_bRun = true;
-			//thread 使用 void (*)(this) mem_fn可以将void(CellServer::*)(this) 转换
-			//把成员函数转化为函数对象，使用对象指针或对象引用进行绑定
-			std::thread t = std::thread(std::mem_fn(&CellServer::OnRun), this);
-			t.detach();
-			//启动发送线程
-			_taskServer.Start();
-		}
+		//启动发送线程
+		_taskServer.Start();
+		_thread.Start(nullptr, [this](CELLThread* pThread) {
+			OnRun(pThread);
+		},
+			[this](CELLThread* pThread) {
+			ClearClients();
+		});
+
 	}
 
 	//处理网络消息
-	bool OnRun() {
-		while (_bRun) {
+	bool OnRun(CELLThread* pThread) {
+		while (pThread->isRun()) {
 			if (_clientsBuff.size() > 0) {
 				std::lock_guard<std::mutex> lock(_mutex);
 				for (auto pClient : _clientsBuff) {
@@ -98,10 +97,13 @@ public:
 			}
 
 			fd_set fdRead;
+			fd_set fdWrite;
+		//	fd_set fdExc;
 
-			FD_ZERO(&fdRead);
+			
 			if (_clients_change) {
 				_clients_change = false;
+				FD_ZERO(&fdRead);
 				_maxSock = _clients.begin()->second->sockfd();
 				for (auto iter : _clients)
 				{
@@ -115,12 +117,14 @@ public:
 			else {
 				memcpy(&fdRead, &_fdRead_bak, sizeof(fd_set));
 			}
+			memcpy(&fdWrite, &_fdRead_bak, sizeof(fd_set));
+		//	memcpy(&fdExc, &_fdRead_bak, sizeof(fd_set));
 			timeval t{ 0,1 };
 			//文件描述符最大值+1，windows中可以写0
-			int ret = select(_maxSock + 1, &fdRead, nullptr, nullptr, &t);
+			int ret = select(_maxSock + 1, &fdRead, &fdWrite,nullptr, &t);
 			if (ret < 0) {
-				printf("select is over\n");
-				Close();
+				printf("CELLServer%d.OnRun.select Error\n",_id);
+				pThread->Exit();
 				return false;
 			}
 			//else if (ret == 0) {
@@ -128,14 +132,48 @@ public:
 			//}
 
 			ReadData(fdRead);
+			WriteData(fdWrite);
+		//	WriteData(fdExc);
 			CheckTime();
 
 		}
 		printf("CellServer%d.OnRun  exit\n", _id);
-		ClearClients();
-		_sem.wakeup();
-	}
 
+	}
+	void OnClientLeave(CellClient* pClient) {
+		if (_pNetEvent) {
+			_pNetEvent->OnLeave(pClient);
+		}
+		_clients_change = true;
+		delete pClient;
+	}
+	void WriteData(fd_set& fdWrite) {
+#ifdef _WIN32
+		for (int n = 0; n < fdWrite.fd_count; n++)
+		{
+			auto iter = _clients.find(fdWrite.fd_array[n]);
+			if (iter != _clients.end()) {
+				if (-1 == iter->second->SendDataReal()) {
+						OnClientLeave(iter->second);
+						_clients.erase(iter->first);
+					}
+			}
+		}
+#else
+		for (auto iter = _clients.begin(); iter != _clients.end();) {
+			if (FD_ISSET(iter.second->sockfd(), &fdRead)) {
+				if (-1 == RecvData(iter.second)) {
+					OnClientLeave(iter->second);
+					auto iterOld = iter;
+					iter++;
+					_clients.erase(pClient->sockfd());
+					continue;
+				}
+			}
+			iter++;
+		}
+#endif // _WIN32
+	}
 	void CheckTime() {
 		auto nowTime = CELLTime::getNowInMilliSec();
 		int dt = int(nowTime - _oldTime);
@@ -153,7 +191,7 @@ public:
 				_clients.erase(iterOld);
 				continue;
 			}
-			iter->second->checkSend(dt);
+			//iter->second->checkSend(dt);
 			iter++;
 		}
 	}
@@ -164,15 +202,9 @@ public:
 			auto iter = _clients.find(fdRead.fd_array[n]);
 			if (iter != _clients.end()) {
 				if (-1 == RecvData(iter->second)) {
-					if (_pNetEvent) {
-						_pNetEvent->OnLeave(iter->second);
-						_clients_change = true;	
-						closesocket(iter->first);
-						delete iter->second;
+					OnClientLeave(iter->second);
 						_clients.erase(iter->first);
 					}
-				}
-
 			}
 			else {
 				printf("error iter == _client.end()\n");
@@ -180,34 +212,25 @@ public:
 
 		}
 #else
-		std::vector<CellClient*> temp;
-		for (auto iter : _clients) {
+		for (auto iter = _clients.begin(); iter != _clients.end();) {
 			if (FD_ISSET(iter.second->sockfd(), &fdRead)) {
 				if (-1 == RecvData(iter.second)) {
-					if (_pNetEvent) {
-						_pNetEvent->OnLeave(iter.second);
-					}
-					_clients_change = true;
-					close(iter->first);
-					temp.push_back(iter.second);
+					OnClientLeave(iter->second);
+					auto iterOld = iter;
+					iter++;
+					_clients.erase(pClient->sockfd());
+					continue;
 				}
 			}
-		}
-		for (auto pClient : temp) {
-			_clients.erase(pClient->sockfd());
-			delete pClient;
+			iter++;
 		}
 #endif // _WIN32
 	}
 	//关闭socket
 	void Close() {
 		printf("CellServer%d.Close  close1 begin\n", _id);
-		if (_bRun) {
-			_taskServer.Close();
-			_bRun = false;
-			_sem.wait();
-		
-		}
+		_taskServer.Close();
+		_thread.Close();
 		printf("CellServer%d.Close  close1 end\n", _id);
 	}
 	void ClearClients() {

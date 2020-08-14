@@ -47,5 +47,8 @@
     <ClInclude Include="CELLSemaphore.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="CELLThread.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

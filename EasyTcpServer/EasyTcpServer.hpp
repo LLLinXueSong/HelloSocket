@@ -41,7 +41,7 @@ private:
 	SOCKET _sock;
 	//每秒消息计时
 	CELLTimestamp _tTime;
-	
+	CELLThread _thread;
 	std::vector<CellServer*> _cellServers;
 protected:
 	//收到消息计数
@@ -173,10 +173,15 @@ public:
 			//启动消息处理线程
 			ser->Start();
 		}
+		_thread.Start(nullptr, [this](CELLThread* pThread) {
+			OnRun(pThread);
+		});
+
 	}
 	//关闭socket
 	void Close() {
 		printf("EasyTcpServer.close1 \n");
+		_thread.Close();
 		if (_sock != INVALID_SOCKET) {
 			for (auto s : _cellServers) {
 				delete s;
@@ -211,8 +216,8 @@ public:
 		}
 	
 	}
-	bool OnRun() {
-		if (isRun()) {
+	void OnRun(CELLThread* pThread) {
+		while (pThread->isRun()) {
 			time4msg();
 			fd_set fdRead;
 			/*fd_set fdWrite;
@@ -225,24 +230,18 @@ public:
 			FD_SET(_sock, &fdExp);*/
 			
 			//文件描述符最大值+1，windows中可以写0
-			timeval t = { 0,10 };
+			timeval t = { 0,1 };
 			int ret = select(_sock + 1, &fdRead, 0, 0, &t);
 			if (ret < 0) {
-				printf("select is over\n");
-				Close();
-				return false;
+				printf("EasyTciServer.OnRun select exit\n");
+				pThread->Exit();
+				break;
 			}
 			if (FD_ISSET(_sock, &fdRead)) {
 				FD_CLR(_sock, &fdRead);
 				Accept();
-				return true;
 			}
-			return true;
 		}
-		return false;
-	}
-	bool isRun() {
-		return _sock != INVALID_SOCKET;
 	}
 	//多线程不安全
 	virtual void OnLeave(CellClient* pClient) {

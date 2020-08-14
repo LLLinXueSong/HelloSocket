@@ -52,26 +52,16 @@ public:
 		int ret = SOCKET_ERROR;
 		int nSendLen = header->dataLength;
 		const char* pSendData = (const char*)header;
-		while (true) {
-			if (_lastSendPos + nSendLen >= SEND_BUFF_SIZE) {
-				int nCopyLen = SEND_BUFF_SIZE - _lastSendPos;
-				memcpy(_szSendBuf + _lastSendPos, pSendData, nCopyLen);
-				//计算剩余数据的位置
-				pSendData += nCopyLen;
-				//计算剩余数据长度
-				nSendLen -= nCopyLen;
-				ret = send(_sockfd, _szSendBuf, SEND_BUFF_SIZE, 0);
-				_lastSendPos = 0;
-				resetDTSend();
-				if (SOCKET_ERROR == ret) {
-					return ret;
-				}
+		if (_lastSendPos + nSendLen >= SEND_BUFF_SIZE) {
+			memcpy(_szSendBuf + _lastSendPos, pSendData, nSendLen);
+			_lastSendPos += nSendLen;
+			if (_lastSendPos == SEND_BUFF_SIZE) {
+				_sendBuffFullCount++;
 			}
-			else {
-				memcpy(_szSendBuf + _lastSendPos, pSendData, nSendLen);
-				_lastSendPos += nSendLen;
-				break;
-			}
+			return nSendLen;
+		}
+		else {
+			_sendBuffFullCount++;
 		}
 		return ret;
 	}
@@ -108,15 +98,16 @@ public:
 		return false;
 	}
 	//立即发送数据
-	int SendDataReal(netmsg_DataHeader* header) {
+	void SendDataReal(netmsg_DataHeader* header) {
 		SendData(header);
 		SendDataReal();
 	}
 	int SendDataReal() {
-		int ret = SOCKET_ERROR;
-		if (_lastSendPos > 0 && SOCKET_ERROR!=_sockfd) {
+		int ret = 0;
+		if (_lastSendPos > 0 && INVALID_SOCKET!=_sockfd) {
 			ret = send(_sockfd, _szSendBuf, _lastSendPos, 0);
 			_lastSendPos = 0;
+			_sendBuffFullCount = 0;
 			resetDTSend();
 		}
 		return ret;
@@ -151,6 +142,8 @@ private:
 	*/
 	//上次发送数据时间
 	time_t _dtSend;
+	//发送缓冲区写满情况计数
+	int _sendBuffFullCount = 0;
 	public:
 		int id = -1;
 		int serverId = -1;
