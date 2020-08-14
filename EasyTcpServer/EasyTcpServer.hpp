@@ -230,7 +230,7 @@ public:
 			FD_SET(_sock, &fdExp);*/
 			
 			//文件描述符最大值+1，windows中可以写0
-			timeval t = { 0,1 };
+			timeval t = { 0,0 };
 			int ret = select(_sock + 1, &fdRead, 0, 0, &t);
 			if (ret < 0) {
 				printf("EasyTciServer.OnRun select exit\n");

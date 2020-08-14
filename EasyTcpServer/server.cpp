@@ -43,7 +43,6 @@ public:
 			if(0 == pClient->SendData(&ret)){
 				//发送缓冲区满了，没发出去
 			}
-			pClient->SendData(&ret);
 			//netmsg_LoginR* ret = new netmsg_LoginR();
 			//pCellServer->addSendTask(pClient,ret);  //将发送解耦，原来需要等待发送完毕才能接收新数据，现在直接加到发送队列，新线程负责发送
 			break;
@@ -87,7 +86,7 @@ int main()
 	server.InitSocket();
 	server.Bind(nullptr, 4567);
 	server.Listen(5);
-	server.Start(1);
+	server.Start(2);
 	//std::thread t1(cmdThread);
 	//t1.detach();
 	while (true) {

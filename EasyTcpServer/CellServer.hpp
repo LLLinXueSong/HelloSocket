@@ -80,9 +80,7 @@ public:
 					pClient->serverId = _id;
 					if (_pNetEvent) {
 						_pNetEvent->OnNetJoin(pClient);
-					}
-					
-					
+					}	
 				}
 				_clientsBuff.clear();
 				_clients_change = true;
@@ -247,29 +245,19 @@ public:
 	//接受数据 处理粘包 拆分包
 	int RecvData(CellClient* pClient)
 	{
-		char* szRecv = pClient->msgBuf() + pClient->getLast();
-		int nLen = (int)recv(pClient->sockfd(), szRecv, (RECV_BUFF_SIZE)-pClient->getLast(), 0);
-		_pNetEvent->OnNetRecv(pClient);
+		int nLen = pClient->RecvData();
+		
 		if (nLen <= 0) {
 			//printf("socket-%d client exit\n", pClient->sockfd());
 			return -1;
 		}
-		//消息缓冲区的数据尾部位置后移
-		pClient->setLastPos(pClient->getLast() + nLen);
-		while (pClient->getLast() >= sizeof(netmsg_DataHeader)) {
-			netmsg_DataHeader *header = (netmsg_DataHeader*)pClient->msgBuf();
-			if (pClient->getLast() >= header->dataLength) {
-				//剩余未处理消息缓冲区的长度
-				int nSize = pClient->getLast() - header->dataLength;
-				OnNetMsg(pClient, header);
-				//将未处理数据前移
-				memcpy(pClient->msgBuf(), pClient->msgBuf() + header->dataLength, nSize);
-				pClient->setLastPos(nSize);
-			}
-			else {
-				break;
-			}
-
+		//接收网络数据
+		_pNetEvent->OnNetRecv(pClient);
+		//是否有消息处理
+		while (pClient->hasMsg()) {
+			OnNetMsg(pClient,pClient->front_msg());
+			//移除最前一条数据
+			pClient->pop_front_msg();
 		}
 		return 0;
 	}

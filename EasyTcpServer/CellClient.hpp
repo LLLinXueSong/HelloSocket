@@ -1,6 +1,6 @@
 #ifndef _CellClient_hpp_
 #define _CellClient_hpp_
-
+#include "CELLBuffer.hpp"
 #include "Cell.hpp"
 //客户端心跳检测计时
 #define CLIENT_HEART_DEAD_TIME 60000
@@ -10,16 +10,14 @@
 class CellClient
 {
 public:
-	CellClient(SOCKET sockfd = INVALID_SOCKET) {
+	CellClient(SOCKET sockfd = INVALID_SOCKET):_sendBuff(SEND_BUFF_SIZE),_recvBuff(RECV_BUFF_SIZE) {
 		static int n = 1;
 		id = n++;
 		_sockfd = sockfd;
-		memset(_szMsgBuf, 0, RECV_BUFF_SIZE);
-		_lastPos = 0;
-		memset(_szSendBuf, 0, SEND_BUFF_SIZE);
-		_lastSendPos = 0;
+		////
 		_dtHeart = 0;
 		a = 0;
+		/////
 		resetDTSend();
 		//resetDTHeart();
 		time.update();
@@ -35,35 +33,29 @@ public:
 			_sockfd = INVALID_SOCKET;
 		}
 	}
+	bool hasMsg() {
+		return _recvBuff.hasMsg();
+	}
+
+	netmsg_DataHeader* front_msg() {
+		return (netmsg_DataHeader*)_recvBuff.data();
+	}
+	void pop_front_msg() {
+		if(hasMsg())
+		_recvBuff.pop(front_msg()->dataLength);
+	}
 	SOCKET sockfd() {
 		return _sockfd;
 	}
-	char* msgBuf() {
-		return _szMsgBuf;
-	}
-	int getLast() {
-		return _lastPos;
-	}
-	void setLastPos(int pos) {
-		_lastPos = pos;
+	int RecvData() {
+		return _recvBuff.read4socket(_sockfd);
 	}
 	//发送指定客户数据 添加发送缓冲区
 	int SendData(netmsg_DataHeader *header) {
-		int ret = SOCKET_ERROR;
-		int nSendLen = header->dataLength;
-		const char* pSendData = (const char*)header;
-		if (_lastSendPos + nSendLen >= SEND_BUFF_SIZE) {
-			memcpy(_szSendBuf + _lastSendPos, pSendData, nSendLen);
-			_lastSendPos += nSendLen;
-			if (_lastSendPos == SEND_BUFF_SIZE) {
-				_sendBuffFullCount++;
-			}
-			return nSendLen;
+		if (_sendBuff.push((const char*)header, header->dataLength)) {
+			return header->dataLength;
 		}
-		else {
-			_sendBuffFullCount++;
-		}
-		return ret;
+		return SOCKET_ERROR;
 	}
 
 	void resetDTHeart() {
@@ -78,19 +70,8 @@ public:
 	}
 	//心跳检测
 	bool checkHeart(int dt) {
-	
-		//printf("%d\n", dt);
-		//printf("%d\n", a);
 		a = a + dt;
 		_dtHeart = _dtHeart + dt;
-
-		//printf("%d\n", _dtHeart);
-		//char* p = (char*)&a;
-		//for (int i = 0; i < 8; i++) {_dtHeart
-		//	printf("%x", *p);
-		//	p--;
-		//}
-		//printf("\n");
 		if (_dtHeart >= CLIENT_HEART_DEAD_TIME) {
 			printf("checkHeart dead socket:%d,time=%d\n", _sockfd, _dtHeart);
 			return true;
@@ -103,14 +84,8 @@ public:
 		SendDataReal();
 	}
 	int SendDataReal() {
-		int ret = 0;
-		if (_lastSendPos > 0 && INVALID_SOCKET!=_sockfd) {
-			ret = send(_sockfd, _szSendBuf, _lastSendPos, 0);
-			_lastSendPos = 0;
-			_sendBuffFullCount = 0;
-			resetDTSend();
-		}
-		return ret;
+		resetDTSend();
+		return _sendBuff.write2socket(_sockfd);;
 	}
 	bool checkSend(int dt) {
 		_dtSend = _dtSend + dt;
@@ -127,11 +102,7 @@ public:
 private:
 	SOCKET _sockfd;
 	//接收缓冲区
-	char _szMsgBuf[RECV_BUFF_SIZE];
-	int _lastPos = 0;
-	//发送缓冲区
-	char _szSendBuf[SEND_BUFF_SIZE];
-	int _lastSendPos = 0;
+	CELLBuffer _recvBuff;
 	//心跳死亡计时
 	int _dtHeart = 0;
 	int a = 0;
@@ -140,13 +111,15 @@ private:
 	a的操作逻辑和_dtHeart相同，但是使用a不能正确执行
 	
 	*/
+	//发送缓冲区
+	CELLBuffer _sendBuff;
 	//上次发送数据时间
 	time_t _dtSend;
 	//发送缓冲区写满情况计数
 	int _sendBuffFullCount = 0;
-	public:
-		int id = -1;
-		int serverId = -1;
+public:
+	int id = -1;
+	int serverId = -1;
 };
 #endif // !_CellClient_hpp_
 
