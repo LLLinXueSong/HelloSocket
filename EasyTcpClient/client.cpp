@@ -48,25 +48,24 @@ void sendThread(int id) {
 		if (!g_bRun) {
 			return ;
 		}
-		Sleep(100);
+		Sleep(10);
 		client[i]->Connect("127.0.0.1", 4567);
 		
 	}
 	printf("Connect:begin=%d, end=%d\n", begin,end);
 	readyCount++;
 	while (readyCount < tCount) {
-		std::chrono::milliseconds t(10);
+		std::chrono::milliseconds t(1);
 		std::this_thread::sleep_for(t);
 	}
-
-	std::thread t1(recvThread, begin, end);
-	t1.detach();
 	netmsg_Login login[1];
 	for (int i = 0; i < 1; i++) {
 		strcpy_s(login[i].userName, "lyd");
 		strcpy_s(login[i].PassWord, "lydmima");
 	}
 	int nLen = sizeof(login);
+	std::thread t1(recvThread, begin, end);
+	t1.detach();
 	while (g_bRun) {
 		for (int i = begin; i < end; i++) {
 			if (SOCKET_ERROR != client[i]->SendData(login, nLen)) {

@@ -96,7 +96,7 @@ public:
 			fd_set fdReads;
 			FD_ZERO(&fdReads);
 			FD_SET(_sock, &fdReads);
-			timeval t = { 0,0 };
+			timeval t = { 0,1 };
 			int ret = select(_sock, &fdReads, 0, 0, &t);
 			if (ret < 0) {
 				printf("socket = %d  select is over1\n", _sock);
