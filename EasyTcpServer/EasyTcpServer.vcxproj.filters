@@ -50,5 +50,14 @@
     <ClInclude Include="CELLThread.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="CELLBuffer.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="CELLLog.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="CELLNetWork.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

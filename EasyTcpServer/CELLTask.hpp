@@ -32,9 +32,9 @@ public:
 		});
 	}
 	void Close() {
-		printf("CellTaskServer%d.close begin \n", _serverId);
+		//CELLLog::Info("CellTaskServer%d.close begin \n", _serverId);
 		_thread.Close();
-		printf("CellTaskServer%d.close end \n", _serverId);
+		//CELLLog::Info("CellTaskServer%d.close end \n", _serverId);
 	}
 protected:
 	void OnRun(CELLThread* pThread) {
@@ -58,7 +58,10 @@ protected:
 			}
 			_tasks.clear();
 		}
-		printf("CellTaskServer%d.OnRun exit\n", _serverId);
+		for (auto pTask : _tasksBuf) {
+			pTask();
+		}
+		//CELLLog::Info("CellTaskServer%d.OnRun exit\n", _serverId);
 	}
 };
 #endif // _CELL_TASK_H_

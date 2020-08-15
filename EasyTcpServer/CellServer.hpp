@@ -30,9 +30,9 @@ public:
 		_taskServer._serverId = id;
 	}
 	~CellServer() {
-		printf("CellServer%d.~CellServer  close1 begin\n", _id);
+		CELLLog::Info("CellServer%d.~CellServer  close1 begin\n", _id);
 		Close();
-		printf("CellServer%d.~CellServer  close2 end\n", _id);
+		CELLLog::Info("CellServer%d.~CellServer  close2 end\n", _id);
 	}
 	//void addSendTask(CellClient* pClient, netmsg_DataHeader* header) {
 	//	//这里在缓冲区中直接调用函数指针所指向的函数，就是下边定义的匿名函数  不是要在这里直接执行发送数据的语句 下面是调用函数的语句
@@ -121,7 +121,7 @@ public:
 			//文件描述符最大值+1，windows中可以写0
 			int ret = select(_maxSock + 1, &fdRead, &fdWrite,nullptr, &t);
 			if (ret < 0) {
-				printf("CELLServer%d.OnRun.select Error\n",_id);
+				CELLLog::Info("CELLServer%d.OnRun.select Error\n",_id);
 				pThread->Exit();
 				return false;
 			}
@@ -135,7 +135,7 @@ public:
 			CheckTime();
 
 		}
-		printf("CellServer%d.OnRun  exit\n", _id);
+		CELLLog::Info("CellServer%d.OnRun  exit\n", _id);
 
 	}
 	void OnClientLeave(CellClient* pClient) {
@@ -205,7 +205,7 @@ public:
 					}
 			}
 			else {
-				printf("error iter == _client.end()\n");
+				CELLLog::Info("error iter == _client.end()\n");
 			}
 
 		}
@@ -226,10 +226,10 @@ public:
 	}
 	//关闭socket
 	void Close() {
-		printf("CellServer%d.Close  close1 begin\n", _id);
+		CELLLog::Info("CellServer%d.Close  close1 begin\n", _id);
 		_taskServer.Close();
 		_thread.Close();
-		printf("CellServer%d.Close  close1 end\n", _id);
+		CELLLog::Info("CellServer%d.Close  close1 end\n", _id);
 	}
 	void ClearClients() {
 		for (auto iter : _clients)
@@ -248,7 +248,7 @@ public:
 		int nLen = pClient->RecvData();
 		
 		if (nLen <= 0) {
-			//printf("socket-%d client exit\n", pClient->sockfd());
+			//CELLLog::Info("socket-%d client exit\n", pClient->sockfd());
 			return -1;
 		}
 		//接收网络数据

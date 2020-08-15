@@ -23,7 +23,7 @@ public:
 		time.update();
 	}
 	~CellClient() {
-		printf("s = %d CellClient%d.~CellClient\n",serverId, id);
+		CELLLog::Info("s = %d CellClient%d.~CellClient\n",serverId, id);
 		if (_sockfd != INVALID_SOCKET) {
 #ifdef _WIN32
 			closesocket(_sockfd);
@@ -73,7 +73,7 @@ public:
 		a = a + dt;
 		_dtHeart = _dtHeart + dt;
 		if (_dtHeart >= CLIENT_HEART_DEAD_TIME) {
-			printf("checkHeart dead socket:%d,time=%d\n", _sockfd, _dtHeart);
+			CELLLog::Info("checkHeart dead socket:%d,time=%d\n", _sockfd, _dtHeart);
 			return true;
 		}
 		return false;
@@ -90,7 +90,7 @@ public:
 	bool checkSend(int dt) {
 		_dtSend = _dtSend + dt;
 		if (_dtSend >= CLIENT_HEART_DEAD_TIME) {
-			//printf("checkSend dead socket:%d,time=%d\n", _sockfd, _dtSend);
+			//CELLLog::Info("checkSend dead socket:%d,time=%d\n", _sockfd, _dtSend);
 			//时间到了立即发送数据 清空发送
 			SendDataReal();
 			resetDTSend();

@@ -4,7 +4,8 @@
 	#include "MessageHeader.hpp"
 	#include "CELLTimestamp.hpp"
 	#include "CELLTask.hpp"
-	#include<stdio.h>
+	#include "CELLLog.hpp"
+	#include <stdio.h>
 	#ifdef _WIN32
 		#define FD_SETSIZE 1024
 		#define WIN32_LEAN_AND_MEAN

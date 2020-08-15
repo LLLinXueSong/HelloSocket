@@ -14,6 +14,16 @@ public:
 		}
 	}
 	bool push(const char* pData,int nLen) {
+		//if (_nLast + nLen > _nSize) {
+		//	//写入数据大于可用空间 也可以写进数据库或者磁盘
+		//	int n = _nLast + nLen - _nSize;
+		//	if (n < 8192)
+		//		n = 8192;
+		//	char* buff = new char[_nSize + n];
+		//	memcpy(buff, _pBuff, _nLast);
+		//	delete[] _pBuff;
+		//	_pBuff = buff;
+		//}
 		if (_nLast + nLen <= _nSize) {
 			memcpy(_pBuff + _nLast, pData, nLen);
 			_nLast += nLen;
@@ -53,7 +63,7 @@ public:
 			char* szRecv = _pBuff + _nLast;
 			int nLen = (int)recv(sockfd, szRecv, _nSize - _nLast, 0);
 			if (nLen <= 0) {
-				//printf("socket-%d client exit\n", pClient->sockfd());
+				//CELLLog::Info("socket-%d client exit\n", pClient->sockfd());
 				return nLen;
 			}
 			_nLast += nLen;

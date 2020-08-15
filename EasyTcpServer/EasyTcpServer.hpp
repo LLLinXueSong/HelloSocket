@@ -33,6 +33,7 @@
 #include "CellClient.hpp"
 #include "CellServer.hpp"
 #include "INetEvent.hpp"
+#include "CELLNetWork.hpp"
 
 
 class EasyTcpServer:public INetEvent
@@ -65,22 +66,18 @@ public:
 	}
 	//初始化socket
 	SOCKET InitSocket() {
-#ifdef _WIN32
-		WORD ver = MAKEWORD(2, 2);
-		WSADATA dat;
-		WSAStartup(ver, &dat);
-#endif // _WIN32
+		CELLNetWork::Init();
 		//避免重复创建 先关闭
 		if (_sock != INVALID_SOCKET) {
-			printf("socket = %d  关闭旧连接。。。。\n", (int)_sock);
+			CELLLog::Info("socket = %d  关闭旧连接。。。。\n", (int)_sock);
 			Close();
 		}
 		_sock = socket(AF_INET, SOCK_STREAM, 0);
 		if (_sock == INVALID_SOCKET) {
-			printf("create socket error\n");
+			CELLLog::Info("create socket error\n");
 		}
 		else {
-			printf("create socket = %d  success\n", (int)_sock);
+			CELLLog::Info("create socket = %d  success\n", (int)_sock);
 		}
 		return _sock;
 	}
@@ -110,11 +107,11 @@ public:
 #endif
 		int ret = bind(_sock, (sockaddr*)&_sin, sizeof(_sin));
 		if (ret == SOCKET_ERROR) {
-			printf("绑定端口 <%d> ERROR\n",port);
+			CELLLog::Info("绑定端口 <%d> ERROR\n",port);
 		}
 		else {
 
-			printf("绑定端口 <%d> 成功\n",port);
+			CELLLog::Info("绑定端口 <%d> 成功\n",port);
 		}
 		return ret;
 	}
@@ -122,11 +119,11 @@ public:
 	int Listen(int n) {
 		int ret = listen(_sock, n);
 		if (SOCKET_ERROR == ret) {
-			printf("socket = %d监听ERROR\n",_sock);
+			CELLLog::Info("socket = %d监听ERROR\n",_sock);
 		}
 		else {
 
-			printf("socket = %d监听成功\n",_sock);
+			CELLLog::Info("socket = %d监听成功\n",_sock);
 		}
 		return ret;
 	}
@@ -143,7 +140,7 @@ public:
 #endif // _WIN32
 
 		if (INVALID_SOCKET == cSock) {
-			printf("socket = %d 接收无效客户端\n",(int)_sock);
+			CELLLog::Info("socket = %d 接收无效客户端\n",(int)_sock);
 		}
 		else {
 			addClientToCellServer(new CellClient(cSock));
@@ -180,36 +177,24 @@ public:
 	}
 	//关闭socket
 	void Close() {
-		printf("EasyTcpServer.close1 \n");
+		CELLLog::Info("EasyTcpServer.close1 \n");
 		_thread.Close();
 		if (_sock != INVALID_SOCKET) {
 			for (auto s : _cellServers) {
 				delete s;
 			}
 			_cellServers.clear();
-#ifdef _WIN32
-			printf("exit \n");
-			closesocket(_sock);
-			WSACleanup();
-#else
-			for (int n = 0; n < _clients.size(); n++)
-			{
-				close(_clients[n]);
-				delete _clients[n];
-			}
-			printf("exit \n");
-			close(_sock);
-#endif
-			_sock != INVALID_SOCKET;
+
+			_sock = INVALID_SOCKET;
 		}
-		printf("EasyTcpServer.close2 \n");
+		CELLLog::Info("EasyTcpServer.close2 \n");
 	}
 	//输出每秒响应网络消息
 	void time4msg() {
 		auto t1 = _tTime.getElapsedSecond();
 		if ( t1>= 1.0) {
 			
-			printf("thread<%d> time<%lf>,socket<%d>, clients<%d>,recvCount<%d>,msg<%d> \n", _cellServers.size(),t1, _sock,(int)_clientCount,int(_recvCount/t1),(int)(_msgCount/t1));
+			CELLLog::Info("thread<%d> time<%lf>,socket<%d>, clients<%d>,recvCount<%d>,msg<%d> \n", _cellServers.size(),t1, _sock,(int)_clientCount,int(_recvCount/t1),(int)(_msgCount/t1));
 			_recvCount = 0;
 			_msgCount = 0;
 			_tTime.update();
@@ -233,7 +218,7 @@ public:
 			timeval t = { 0,0 };
 			int ret = select(_sock + 1, &fdRead, 0, 0, &t);
 			if (ret < 0) {
-				printf("EasyTciServer.OnRun select exit\n");
+				CELLLog::Info("EasyTciServer.OnRun select exit\n");
 				pThread->Exit();
 				break;
 			}
@@ -252,7 +237,7 @@ public:
 	}
 	virtual void OnNetJoin(CellClient* pClient) {
 		_clientCount++;
-		//printf("client<%d> join\n", pClient->sockfd());
+		//CELLLog::Info("client<%d> join\n", pClient->sockfd());
 	}
 	virtual void OnNetRecv(CellClient* pClient) {
 		_recvCount++;

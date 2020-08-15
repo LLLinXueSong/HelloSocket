@@ -30,7 +30,7 @@ public:
 		}
 		/*else
 		{
-			printf("CELLSemaphore wakeup error.\n");
+			CELLLog::Info("CELLSemaphore wakeup error.\n");
 		}*/
 		
 	}
