@@ -79,6 +79,9 @@ public:
 		}
 		return false;
 	}
+	bool needWrite() {
+		return _nLast >0;
+	}
 private:
 	//·¢ËÍ»º³åÇø
 	char* _pBuff = nullptr;

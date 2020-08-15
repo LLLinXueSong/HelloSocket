@@ -33,6 +33,9 @@ public:
 			_sockfd = INVALID_SOCKET;
 		}
 	}
+	bool needWrite() {
+		return _sendBuff.needWrite();
+	}
 	bool hasMsg() {
 		return _recvBuff.hasMsg();
 	}

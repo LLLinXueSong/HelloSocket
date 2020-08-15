@@ -1,4 +1,4 @@
-
+ï»¿
 #include<stdio.h>
 #include<vector>
 #include "EasyTcpServer.hpp"
@@ -24,7 +24,7 @@
 //}
 class MyServer :public EasyTcpServer {
 public:
-	//¶àÏß³Ì²»°²È«
+	//å¤šçº¿ç¨‹ä¸å®‰å…¨
 	virtual void OnLeave(CellClient* pClient) {
 		_clientCount--;
 		CELLLog::Info("client<%d> exit\n", pClient->sockfd());
@@ -41,11 +41,11 @@ public:
 			//CELLLog::Info("recv socket-%d cmd:netmsg_Login Len:%d username:%s password:%s\n", cSock, netmsg_Login->dataLength, netmsg_Login->userName, netmsg_Login->PassWord);
 			netmsg_LoginR ret;
 			if(0 == pClient->SendData(&ret)){
-				//·¢ËÍ»º³åÇøÂúÁË£¬Ã»·¢³öÈ¥
+				//å‘é€ç¼“å†²åŒºæ»¡äº†ï¼Œæ²¡å‘å‡ºå»
 				CELLLog::Info("<Socket = %d> send full\n", pClient->sockfd());
 			}
 			//netmsg_LoginR* ret = new netmsg_LoginR();
-			//pCellServer->addSendTask(pClient,ret);  //½«·¢ËÍ½âñî£¬Ô­À´ĞèÒªµÈ´ı·¢ËÍÍê±Ï²ÅÄÜ½ÓÊÕĞÂÊı¾İ£¬ÏÖÔÚÖ±½Ó¼Óµ½·¢ËÍ¶ÓÁĞ£¬ĞÂÏß³Ì¸ºÔğ·¢ËÍ
+			//pCellServer->addSendTask(pClient,ret);  //å°†å‘é€è§£è€¦ï¼ŒåŸæ¥éœ€è¦ç­‰å¾…å‘é€å®Œæ¯•æ‰èƒ½æ¥æ”¶æ–°æ•°æ®ï¼Œç°åœ¨ç›´æ¥åŠ åˆ°å‘é€é˜Ÿåˆ—ï¼Œæ–°çº¿ç¨‹è´Ÿè´£å‘é€
 			break;
 		}
 		case CMD_C2S_HEART: {
@@ -87,7 +87,7 @@ int main()
 	server.InitSocket();
 	server.Bind(nullptr, 4567);
 	server.Listen(5);
-	server.Start(2);
+	server.Start(1);
 	//std::thread t1(cmdThread);
 	//t1.detach();
 	while (true) {

@@ -1,61 +1,42 @@
-#ifndef _EasyTcpClient_hpp_
+ï»¿#ifndef _EasyTcpClient_hpp_
 #define _EasyTcpClient_hpp_
 
-#ifdef _WIN32
-	#define WIN32_LEAN_AND_MEAN
-	#define _WINSOCK_DEPRECATED_NO_WARNINGS
-	#define _CRT_SECURE_NO_WARNINGS
-	#include<Windows.h>
-	#include<WinSock2.h>
-	#pragma comment(lib,"ws2_32.lib")
-#else
-	#include<unistd.h>
-	#include<arpa/inet.h>
-	#include<string.h>
-	#define SOCKET int
-	#define INVALID_SOCKET (SOCKET)(~0)
-	#define SOCKET_ERROR           (-1)
-#endif
-#ifndef RECV_BUFF_SIZE
-	#define RECV_BUFF_SIZE 10240
-#endif // !RECV_BUFF_SIZE
 #include<stdio.h>
 #include<thread>
+#include "Cell.hpp"
 #include "MessageHeader.hpp"
+#include "CELLNetWork.hpp"
+#include "CellClient.hpp"
 class EasyTcpClient
 {
 public:
 	EasyTcpClient() {
-		_sock = INVALID_SOCKET;
+		
 		_isConnect = false;
 	}
 	virtual ~EasyTcpClient() {
 		Close();
 	}
-	//³õÊ¼»¯socket
+	//åˆå§‹åŒ–socket
 	void initSocket() {
-		//Æô¶¯win socket 2.x»·¾³
-#ifdef _WIN32
-		WORD ver = MAKEWORD(2, 2);
-		WSADATA dat;
-		WSAStartup(ver, &dat);
-#endif
-		//±ÜÃâÖØ¸´´´½¨ ÏÈ¹Ø±Õ
-		if (_sock != INVALID_SOCKET) { 
-			printf("socket = %d  ¹Ø±Õ¾ÉÁ¬½Ó¡£¡£¡£¡£\n",_sock);
+		CELLNetWork::Init();
+		//é¿å…é‡å¤åˆ›å»º å…ˆå…³é—­
+		if (pClient) {
+			CELLLog::Info("socket = %d  å…³é—­æ—§è¿æ¥ã€‚ã€‚ã€‚ã€‚\n",pClient->sockfd());
 			Close();
 		}
-		_sock = socket(AF_INET, SOCK_STREAM, 0);
+		SOCKET _sock = socket(AF_INET, SOCK_STREAM, 0);
 		if (_sock == INVALID_SOCKET) {
-			printf("create socket error\n");
+			CELLLog::Info("create socket error\n");
 		}
 		else {
-			//printf("create socket = %d  success\n",_sock);
+			pClient = new CellClient(_sock);
+			CELLLog::Info("create socket = %d  success\n", pClient->sockfd());
 		}
 	}
-	//Á¬½Ó·şÎñÆ÷
+	//è¿æ¥æœåŠ¡å™¨
 	int Connect(const char* ip, short port) {
-		if (_sock == INVALID_SOCKET) {
+		if (!pClient) {
 			initSocket();
 		}
 		sockaddr_in _sin = {};
@@ -66,48 +47,60 @@ public:
 #else
 		_sin.sin_addr.s_addr = inet_addr(ip);
 #endif
-		int ret = connect(_sock, (sockaddr*)&_sin, sizeof(sockaddr));
+		int ret = connect(pClient->sockfd(), (sockaddr*)&_sin, sizeof(sockaddr));
 		if (ret == SOCKET_ERROR) {
-			printf("socket =%d  port = %d connect error\n",_sock,port);
+			CELLLog::Info("socket =%d  port = %d connect error\n", pClient->sockfd(),port);
 		}
 		else {
 			_isConnect = true;
-			//printf("socket =%d  port = %d connect success\n",_sock,port);
+			//CELLLog::Info("socket =%d  port = %d connect success\n", pClient->sockfd(),port);
 		}
 		return ret;
 	}
-	//¹Ø±Õsocket
+	//å…³é—­socket
 	void Close() {
-		if (_sock != INVALID_SOCKET) { //±ÜÃâÖØ¸´¹Ø±Õ
-#ifdef _WIN32
-			closesocket(_sock);
-			WSACleanup();
-#else
-			close(_sock);
-#endif
-			printf("client exit \n");
-			_sock = INVALID_SOCKET;
+		if (pClient) { //é¿å…é‡å¤å…³é—­
+			delete pClient;
+			pClient = false;
 		}
 		_isConnect = false;
 	}
-	//´¦ÀíÍøÂçÏûÏ¢
+	//å¤„ç†ç½‘ç»œæ¶ˆæ¯
 	bool OnRun() {
 		if (isRun()) {
+			SOCKET _sock = pClient->sockfd();
 			fd_set fdReads;
+			fd_set fdWrite;
+			FD_ZERO(&fdWrite);
 			FD_ZERO(&fdReads);
-			FD_SET(_sock, &fdReads);
 			timeval t = { 0,1 };
-			int ret = select(_sock, &fdReads, 0, 0, &t);
+			int ret = 0;
+			FD_SET(_sock, &fdReads);
+			if (pClient->needWrite()) {
+				
+				FD_SET(_sock, &fdWrite);
+				ret = select(_sock+1 , &fdReads, &fdWrite, nullptr, &t);
+			}
+			else {
+				ret = select(_sock+1 , &fdReads, nullptr, nullptr, &t);
+			}
 			if (ret < 0) {
-				printf("socket = %d  select is over1\n", _sock);
+				CELLLog::Info("socket = %d  select is over1\n", _sock);
 				Close();
 				return false;
 			}
 			if (FD_ISSET(_sock, &fdReads))
 			{
-				FD_CLR(_sock, &fdReads);
 				if (-1 == RecvData(_sock)) {
-					printf("socket = %d  select is over2\n", _sock);
+					CELLLog::Info("socket = %d  select is over2\n", _sock);
+					Close();
+					return false;
+				}
+			}
+			if (FD_ISSET(_sock, &fdWrite))
+			{
+				if (-1 == pClient->SendDataReal()) {
+					CELLLog::Info("socket = %d  select is over2\n", _sock);
 					Close();
 					return false;
 				}
@@ -117,91 +110,31 @@ public:
 		return false;
 	}
 	bool isRun() {
-		return _sock != INVALID_SOCKET && _isConnect;
+		return pClient && _isConnect;
 	}
-
-	//µÚ¶ş»º³åÇø ÏûÏ¢»º³åÇø
-	char _szMsgBuf[RECV_BUFF_SIZE] = {};
-	int _lastPos = 0;
-	//½ÓÊÜÊı¾İ ´¦ÀíÕ³°ü ²ğ·Ö°ü
+	//æ¥å—æ•°æ® å¤„ç†ç²˜åŒ… æ‹†åˆ†åŒ…
 	int RecvData(SOCKET cSock)
 	{
-		char* szRecv = _szMsgBuf + _lastPos;
-		int nLen = recv(cSock, szRecv, (RECV_BUFF_SIZE)-_lastPos, 0);
-		netmsg_DataHeader *header = (netmsg_DataHeader*)szRecv;
-		if (nLen <= 0) {
-			printf("socket-%d client exit", cSock);
-			return -1;
-		}
-		//ÏûÏ¢»º³åÇøµÄÊı¾İÎ²²¿Î»ÖÃºóÒÆ
-		_lastPos += nLen;
-		while (_lastPos >= sizeof(netmsg_DataHeader)) {
-			netmsg_DataHeader *header = (netmsg_DataHeader*)_szMsgBuf;
-			if (_lastPos >= header->dataLength) {
-				//Ê£ÓàÎ´´¦ÀíÏûÏ¢»º³åÇøµÄ³¤¶È
-				int nSize = _lastPos - header->dataLength;
-				OnNetMsg(header);
-				//½«Î´´¦ÀíÊı¾İÇ°ÒÆ
-				memcpy(_szMsgBuf, _szMsgBuf + header->dataLength, nSize);
-				_lastPos = nSize;
-			}
-			else {
-				break;
-			}
-
-		}
-
-		return 0;
-	}
-	//ÏìÓ¦ÍøÂçÏûÏ¢
-	void OnNetMsg(netmsg_DataHeader *header) {
-		switch (header->cmd)
-		{
-		case CMD_LOGIN_RESULT:
-		{
-			netmsg_LoginR *login;
-			login = (netmsg_LoginR*)header;
-			//printf("<socket=%d>recv server cmd:netmsg_LoginR Len:%d \n",_sock, login->dataLength);
-			break;
-		}
-		case CMD_LOGOUT_RESULT:
-		{
-			netmsg_LogoutR *logout;
-			logout = (netmsg_LogoutR*)header;
-			printf("<socket=%d> recv server cmd:netmsg_LoginR Len:%d \n", _sock, logout->dataLength);
-			break;
-		}
-		case CMD_NEW_USER_JOIN:
-		{
-			netmsg_NewUserJoin *userJoin;
-			userJoin = (netmsg_NewUserJoin*)header;
-			printf("<socket=%d> new user join cmd:netmsg_LoginR Len:%d \n", _sock,  userJoin->dataLength);
-			break;
-		}
-		case CMD_ERROR:
-		{
-			printf("<socket=%d> cmd:CMD_ERROR Len:%d \n", header->dataLength);
-			break;
-		}
-		default: {
-			printf("<socket=%d> undefine msg, Len:%d \n", _sock, header->dataLength);
-		}
-		}
-	}
-	//·¢ËÍÊı¾İ
-	int SendData(netmsg_DataHeader *header,int nLen) {
-		int ret = SOCKET_ERROR;
-		if (isRun() && header) {
-			ret = send(_sock, (const char*)header, nLen, 0);
-			if (SOCKET_ERROR == ret) {
-				Close();
+		int nLen = pClient->RecvData();
+		if (nLen > 0) {
+			while (pClient->hasMsg()) {
+				OnNetMsg(pClient->front_msg());
+				//ç§»é™¤æœ€å‰ä¸€æ¡æ•°æ®
+				pClient->pop_front_msg();
 			}
 		}
-		return ret;
+		//æ˜¯å¦æœ‰æ¶ˆæ¯å¤„ç†	
+		return nLen;
 	}
-private:
-	SOCKET _sock;
-	bool _isConnect;
+	//å“åº”ç½‘ç»œæ¶ˆæ¯
+	virtual void OnNetMsg(netmsg_DataHeader *header) = 0;
+	//å‘é€æ•°æ®
+	int SendData(netmsg_DataHeader *header) {
+		return pClient->SendData(header);
+	}
+protected:
+	CellClient* pClient = nullptr;
+	bool _isConnect = false;
 };
 
 

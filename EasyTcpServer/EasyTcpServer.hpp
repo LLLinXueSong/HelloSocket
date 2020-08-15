@@ -205,17 +205,14 @@ public:
 		while (pThread->isRun()) {
 			time4msg();
 			fd_set fdRead;
-			/*fd_set fdWrite;
-			fd_set fdExp;*/
+
 			FD_ZERO(&fdRead);
-			/*FD_ZERO(&fdWrite);
-			FD_ZERO(&fdExp);*/
+
 			FD_SET(_sock, &fdRead);
-		/*	FD_SET(_sock, &fdWrite);
-			FD_SET(_sock, &fdExp);*/
+
 			
 			//文件描述符最大值+1，windows中可以写0
-			timeval t = { 0,0 };
+			timeval t = { 0,1 };
 			int ret = select(_sock + 1, &fdRead, 0, 0, &t);
 			if (ret < 0) {
 				CELLLog::Info("EasyTciServer.OnRun select exit\n");
