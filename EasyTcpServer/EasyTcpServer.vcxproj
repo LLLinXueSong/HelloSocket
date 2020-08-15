@@ -75,22 +75,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="CELLTask.hpp" />
     <ClCompile Include="server.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="Cell.hpp" />
-    <ClInclude Include="CELLBuffer.hpp" />
-    <ClInclude Include="CellClient.hpp" />
-    <ClInclude Include="CELLLog.hpp" />
-    <ClInclude Include="CELLNetWork.hpp" />
-    <ClInclude Include="CELLSemaphore.hpp" />
-    <ClInclude Include="CellServer.hpp" />
-    <ClInclude Include="CELLThread.hpp" />
-    <ClInclude Include="CELLTimestamp.hpp" />
-    <ClInclude Include="EasyTcpServer.hpp" />
-    <ClInclude Include="INetEvent.hpp" />
-    <ClInclude Include="MessageHeader.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
