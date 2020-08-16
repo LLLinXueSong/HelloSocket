@@ -1,9 +1,7 @@
 ﻿
-#include<stdio.h>
-#include<vector>
-#include "EasyTcpServer.hpp"
-#include<thread>
 
+#include "EasyTcpServer.hpp"
+#include "CELLMsgStream.hpp"
 
 //bool g_bRun = 1;
 //void cmdThread() {
@@ -57,11 +55,35 @@ public:
 		
 		case CMD_LOGOUT:
 		{
-			netmsg_Logout *Logout;
-			Logout = (netmsg_Logout*)header;
-			//CELLLog::Info("recv socket-%d cmd:netmsg_Logout Len:%d username:%s\n", cSock, netmsg_Logout->dataLength, netmsg_Logout->userName);
-			netmsg_LogoutR ret;
-			//SendData(cSock, &ret);
+			CELLRecvStream r(header);
+			auto n1 = r.ReadInt8();
+			auto n2 = r.ReadInt16();
+			auto n3 = r.ReadInt32();
+			auto n4 = r.ReadFloat();
+			auto n5 = r.ReadDouble();
+			char username[32] = {};
+			auto n8 = r.ReadArray(username, 32);
+			char pw[32] = {};
+			auto n6 = r.ReadArray(pw, 32);
+			int ata[10] = {};
+			auto n7 = r.ReadArray(ata, 10);
+			
+
+			CELLSendStream s;
+			s.setNetCmd(CMD_LOGOUT_RESULT);
+			s.WriteInt8(5);
+			s.WriteInt16(5);
+			s.WriteInt32(5);
+			s.WriteFloat(5.0f);
+			s.WriteDouble(5.0);
+			char* str = "Server";
+			s.WriteArray(str, strlen(str));
+			char a[] = "ahaa";
+			s.WriteArray(a, strlen(a));
+			int b[] = { 1,2,3,4,5 };
+			s.WriteArray(b, 5);
+			s.finish();
+			pClient->SendData(s.data(), s.length());
 			break;
 		}
 		default:

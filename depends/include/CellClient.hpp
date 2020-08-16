@@ -55,8 +55,11 @@ public:
 	}
 	//发送指定客户数据 添加发送缓冲区
 	int SendData(netmsg_DataHeader *header) {
-		if (_sendBuff.push((const char*)header, header->dataLength)) {
-			return header->dataLength;
+		return SendData((const char*)header,header->dataLength);
+	}
+	int SendData(const char *pData,int len) {
+		if (_sendBuff.push(pData,len)) {
+			return len;
 		}
 		return SOCKET_ERROR;
 	}

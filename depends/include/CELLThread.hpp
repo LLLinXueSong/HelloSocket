@@ -13,6 +13,10 @@ private:
 	//不同线程中改变数据需要加锁
 	std::mutex _mutex;
 public:
+	static void Sleep(time_t dt) {
+		std::chrono::milliseconds t(dt);
+		std::this_thread::sleep_for(t);
+	}
 	void Start(EventCall onCreate = nullptr,
 		EventCall onRun = nullptr,
 		EventCall onDestory = nullptr) {

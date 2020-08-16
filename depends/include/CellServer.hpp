@@ -93,12 +93,9 @@ public:
 				std::this_thread::sleep_for(t);
 				continue;
 			}
-
+			CheckTime();
 			fd_set fdRead;
 			fd_set fdWrite;
-		//	fd_set fdExc;
-
-			
 			if (_clients_change) {
 				_clients_change = false;
 				FD_ZERO(&fdRead);
@@ -115,24 +112,39 @@ public:
 			else {
 				memcpy(&fdRead, &_fdRead_bak, sizeof(fd_set));
 			}
-			memcpy(&fdWrite, &_fdRead_bak, sizeof(fd_set));
+			bool bNeedWrite = false;
+			FD_ZERO(&fdWrite);
+			for (auto iter : _clients)
+			{
+				if (iter.second->needWrite()) {
+					bNeedWrite = true;
+					FD_SET(iter.second->sockfd(), &fdWrite);
+				}
+			}
+		//	memcpy(&fdWrite, &_fdRead_bak, sizeof(fd_set));
 		//	memcpy(&fdExc, &_fdRead_bak, sizeof(fd_set));
 			timeval t{ 0,1 };
-			//文件描述符最大值+1，windows中可以写0
-			int ret = select(_maxSock + 1, &fdRead, &fdWrite,nullptr, &t);
+			int ret = 0;
+			if (bNeedWrite) {
+				//文件描述符最大值+1，windows中可以写0
+				ret = select(_maxSock + 1, &fdRead, &fdWrite, nullptr, &t);
+			}
+			else {
+				ret = select(_maxSock + 1, &fdRead, nullptr, nullptr, &t);
+			}
 			if (ret < 0) {
 				CELLLog::Info("CELLServer%d.OnRun.select Error\n",_id);
 				pThread->Exit();
 				return false;
 			}
-			//else if (ret == 0) {
-			//	continue;
-			//}
+			else if (ret == 0) {
+				continue;
+			}
 
 			ReadData(fdRead);
 			WriteData(fdWrite);
 		//	WriteData(fdExc);
-			CheckTime();
+			
 
 		}
 		CELLLog::Info("CellServer%d.OnRun  exit\n", _id);
@@ -159,7 +171,7 @@ public:
 		}
 #else
 		for (auto iter = _clients.begin(); iter != _clients.end();) {
-			if (FD_ISSET(iter.second->sockfd(), &fdRead)) {
+			if (iter->second->needWrite()&&FD_ISSET(iter.second->sockfd(), &fdRead)) {
 				if (-1 == RecvData(iter.second)) {
 					OnClientLeave(iter->second);
 					auto iterOld = iter;
